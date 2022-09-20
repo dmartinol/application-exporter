@@ -2,7 +2,6 @@ package formatter
 
 import (
 	"encoding/csv"
-	"fmt"
 	"log"
 	"net/http"
 	"sort"
@@ -10,6 +9,7 @@ import (
 
 	logger "github.com/dmartinol/deployment-exporter/pkg/log"
 	"github.com/dmartinol/deployment-exporter/pkg/model"
+	"github.com/olekukonko/tablewriter"
 )
 
 type ContentType int64
@@ -78,22 +78,26 @@ func (f Formatter) sortedNamespaces() []model.NamespaceModel {
 }
 
 func (f Formatter) text(rw http.ResponseWriter) {
-	var sb strings.Builder
+	var sb = &strings.Builder{}
+
+	table := tablewriter.NewWriter(sb)
+	table.SetHeader([]string{"Namespace", "Application", "Container", "Image name", "Image version", "Image full name"})
+
 	for _, namespace := range f.sortedNamespaces() {
-		sb.WriteString("############\n")
-		sb.WriteString(fmt.Sprintf("Namespace: %s\n", namespace.Name()))
 		for _, applicationProvider := range namespace.AllApplicationProviders() {
-			sb.WriteString(fmt.Sprintf("## %s %s\n", applicationProvider.(model.Resource).Kind(), applicationProvider.(model.Resource).Name()))
 			for _, applicationConfig := range applicationProvider.ApplicationConfigs() {
 				applicationImage, ok := f.TopologyModel.ImageByName(applicationConfig.ImageName)
 				if ok {
-					sb.WriteString(fmt.Sprintf("### %s %s %s\n", applicationConfig.ApplicationName, applicationImage.ImageName(), applicationImage.ImageVersion()))
+					table.Append([]string{namespace.Name(), applicationProvider.(model.Resource).Kind(), applicationConfig.ApplicationName, applicationImage.ImageName(), applicationImage.ImageVersion(),
+						applicationImage.ImageFullName()})
 				} else {
-					sb.WriteString(fmt.Sprintf("### %s %s %s\n", applicationConfig.ApplicationName, applicationConfig.ImageName, "NA"))
+					table.Append([]string{namespace.Name(), applicationProvider.(model.Resource).Kind(), applicationConfig.ApplicationName, applicationConfig.ImageName, "NA",
+						applicationConfig.ImageName})
 				}
 			}
 		}
 	}
+	table.Render()
 
 	rw.WriteHeader(http.StatusOK)
 	rw.Header().Set("Content-Type", "application/text")

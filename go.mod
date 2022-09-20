@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/gorilla/mux v1.8.0
+	github.com/olekukonko/tablewriter v0.0.5
 	github.com/openshift/api v0.0.0-20200323095748-e7041f8762a3
 	github.com/openshift/client-go v0.0.0-20200320150128-a906f3d8e723
 	go.uber.org/zap v1.23.0
@@ -29,6 +30,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
+	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
