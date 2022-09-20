@@ -42,7 +42,7 @@ func startServer() {
 }
 
 func serverPortOrDefault() string {
-	if port, ok := os.LookupEnv("SERVERPORT"); ok {
+	if port, ok := os.LookupEnv("SERVER_PORT"); ok {
 		return port
 	}
 	return "8080"

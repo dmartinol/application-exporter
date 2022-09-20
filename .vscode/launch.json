@@ -25,7 +25,7 @@
             "mode": "debug",
             "program": "exporter.go",
             "env": {
-                "SERVERPORT": "8181",
+                "SERVER_PORT": "8181",
                 "NS_SELECTOR": "kubernetes.io/metadata.name=kafka",
                 "LOG_LEVEL": "info"
             }

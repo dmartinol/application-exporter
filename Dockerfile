@@ -16,8 +16,9 @@ FROM alpine:3 as runner
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /tmp/exporter /go/bin/exporter
 
-ENV SERVERPORT=8080
+ENV SERVER_PORT=8080
 ENV CONTAINER_MODE='true'
+ENV LOG_LEVEL='info'
 ENV NS_SELECTOR='label=value'
-EXPOSE ${SERVERPORT}
+EXPOSE ${SERVER_PORT}
 ENTRYPOINT ["/go/bin/exporter"]
