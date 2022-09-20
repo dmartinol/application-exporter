@@ -1,4 +1,4 @@
-FROM ubi8/go-toolset:latest as builder
+FROM golang:latest as builder
 
 WORKDIR /app
 
@@ -13,7 +13,9 @@ RUN ls -lh /tmp/
 # RUN go build -v -o /tmp/exporter exporter.go
 RUN CGO_ENABLED=0 GOOS=linux go build -mod=readonly  -v -o /tmp/exporter
 RUN ls -lh /tmp/
-FROM ubi8/ubi-minimal AS runner
+
+FROM alpine:3 as runner
+RUN apk add --no-cache ca-certificates
 COPY --from=builder /tmp/exporter /go/bin/exporter
 RUN ls -la /go/bin/exporter
 
