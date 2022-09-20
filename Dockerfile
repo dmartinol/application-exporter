@@ -18,5 +18,6 @@ COPY --from=builder /tmp/exporter /go/bin/exporter
 
 ENV SERVERPORT=8080
 ENV CONTAINER_MODE='true'
+ENV NS_SELECTOR='label=value'
 EXPOSE ${SERVERPORT}
 ENTRYPOINT ["/go/bin/exporter"]

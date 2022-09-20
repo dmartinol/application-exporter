@@ -36,9 +36,12 @@ func (s StatefulSet) OwnerReferences() []metav1.OwnerReference {
 func (s StatefulSet) IsOwnerOf(owner metav1.OwnerReference) bool {
 	return strings.Compare(owner.Kind, s.Kind()) == 0 && strings.Compare(owner.Name, s.Name()) == 0
 }
-func (s StatefulSet) ConnectedKinds() []string {
-	return []string{}
-}
-func (s StatefulSet) ConnectedResources(kind string, resources []Resource) ([]Resource, string) {
-	return []Resource{}, ""
+
+func (s StatefulSet) ApplicationConfigs() []ApplicationConfig {
+	var apps []ApplicationConfig
+	for i := 0; i < len(s.Delegate.Spec.Template.Spec.Containers); i++ {
+		c := s.Delegate.Spec.Template.Spec.Containers[i]
+		apps = append(apps, ApplicationConfig{ApplicationName: c.Name, ImageName: c.Image})
+	}
+	return apps
 }

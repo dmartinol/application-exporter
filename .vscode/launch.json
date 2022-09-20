@@ -5,11 +5,30 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Attach to Process",
+            "type": "go",
+            "request": "attach",
+            "mode": "local",
+            "processId": 0
+        },
+        {
             "name": "Launch Exporter",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "exporter.go"
+        },
+        {
+            "name": "Launch Exporter with options",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "exporter.go",
+            "env": {
+                "SERVERPORT": "8181",
+                "NS_SELECTOR": "kubernetes.io/metadata.name=kafka",
+                "LOG_LEVEL": "info"
+            }
         }
     ]
 }

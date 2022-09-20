@@ -18,6 +18,9 @@ func InitLogger() {
 	consoleEncoder := zapcore.NewConsoleEncoder(pe)
 
 	logLevel := "info"
+	if level, ok := os.LookupEnv("LOG_LEVEL"); ok {
+		logLevel = level
+	}
 	level, err := zapcore.ParseLevel(logLevel)
 	if err != nil {
 		log.Printf("No logging level or wrong value provided as \"%s\"\n", logLevel)

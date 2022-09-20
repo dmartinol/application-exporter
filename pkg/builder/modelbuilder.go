@@ -2,11 +2,13 @@ package builder
 
 import (
 	"context"
+	"os"
 
 	logger "github.com/dmartinol/deployment-exporter/pkg/log"
 	model "github.com/dmartinol/deployment-exporter/pkg/model"
 	appsv1 "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	imagesv1 "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -59,11 +61,22 @@ func (builder *ModelBuilder) BuildForConfig(config *rest.Config) (*model.Topolog
 }
 
 func (builder *ModelBuilder) buildCluster() error {
-	filter := "infinitySubChart=true"
-	namespaces, err := builder.coreClient.Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: filter})
-	if err != nil {
-		logger.Warnf("Cannot list namespaces by filter %s: %s", filter, err)
-		return err
+	var namespaces *v1.NamespaceList
+	var err error
+	if filter, ok := os.LookupEnv("NS_SELECTOR"); ok {
+		logger.Infof("Filtering by %s", filter)
+		namespaces, err = builder.coreClient.Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: filter})
+		if err != nil {
+			logger.Warnf("Cannot list namespaces by filter %s: %s", filter, err)
+			return err
+		}
+	} else {
+		logger.Infof("No namespace filter applied")
+		namespaces, err = builder.coreClient.Namespaces().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			logger.Warnf("Cannot list namespaces: %s", err)
+			return err
+		}
 	}
 	for _, namespace := range namespaces.Items {
 		err := builder.buildNamespace(namespace.Name)
@@ -78,7 +91,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	builder.namespaceModel = builder.topologyModel.AddNamespace(namespace)
 
 	logger.Infof("Running on NS %s", namespace)
-	logger.Info("=== Deployments ===")
+	logger.Debug("=== Deployments ===")
 	deployments, err := builder.appsV1Client.Deployments(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -99,9 +112,10 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 		logger.Debugf("Found %s/%s", statefulSet.Kind, statefulSet.Name)
 		resource := model.StatefulSet{Delegate: statefulSet}
 		builder.namespaceModel.AddResource(resource)
+		builder.buildApplications(namespace, resource)
 	}
 
-	logger.Info("=== DeploymentConfigs ===")
+	logger.Debug("=== DeploymentConfigs ===")
 	deploymentConfigs, err := builder.appsClient.DeploymentConfigs(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -113,7 +127,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 		builder.buildApplications(namespace, resource)
 	}
 
-	logger.Info("=== Pods ===")
+	logger.Debug("=== Pods ===")
 	pods, err := builder.coreClient.Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -129,7 +143,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 
 func (builder *ModelBuilder) buildApplications(namespace string, applicationProvider model.ApplicationProvider) {
 	for _, appConfig := range applicationProvider.ApplicationConfigs() {
-		logger.Infof("Loading application %s", appConfig)
+		logger.Debugf("Loading application %s", appConfig)
 		if appConfig.IsImageStream() {
 			imageStream, err := builder.imagesClient.ImageStreamImages(namespace).Get(context.TODO(), appConfig.ImageStreamId(), metav1.GetOptions{})
 			if err != nil {
