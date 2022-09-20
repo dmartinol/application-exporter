@@ -25,12 +25,16 @@ func InitLogger() {
 	}
 	log.Printf("Logging at %s level", level.String())
 	var core zapcore.Core
-	logFileName := "exporter.log"
-	logFile, _ := os.OpenFile(logFileName, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
-	core = zapcore.NewTee(
-		zapcore.NewCore(fileEncoder, zapcore.AddSync(logFile), zap.DebugLevel),
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), level),
-	)
+	if _, ok := os.LookupEnv("CONTAINER_MODE"); !ok {
+		logFileName := "exporter.log"
+		logFile, _ := os.OpenFile(logFileName, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+		core = zapcore.NewTee(
+			zapcore.NewCore(fileEncoder, zapcore.AddSync(logFile), zap.DebugLevel),
+			zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), level),
+		)
+	} else {
+		core = zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), level)
+	}
 
 	logger = zap.New(core).Sugar()
 }
