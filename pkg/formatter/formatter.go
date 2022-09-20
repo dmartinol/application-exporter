@@ -2,6 +2,7 @@ package formatter
 
 import (
 	"encoding/csv"
+	"fmt"
 	"log"
 	"net/http"
 	"sort"
@@ -9,7 +10,6 @@ import (
 
 	logger "github.com/dmartinol/deployment-exporter/pkg/log"
 	"github.com/dmartinol/deployment-exporter/pkg/model"
-	"github.com/olekukonko/tablewriter"
 )
 
 type ContentType int64
@@ -80,24 +80,23 @@ func (f Formatter) sortedNamespaces() []model.NamespaceModel {
 func (f Formatter) text(rw http.ResponseWriter) {
 	var sb = &strings.Builder{}
 
-	table := tablewriter.NewWriter(sb)
-	table.SetHeader([]string{"Namespace", "Application", "Container", "Image name", "Image version", "Image full name"})
-
 	for _, namespace := range f.sortedNamespaces() {
 		for _, applicationProvider := range namespace.AllApplicationProviders() {
+			sb.WriteString(fmt.Sprintf("===============\nNamespace: %s\nApplication: %s\n", namespace.Name(), applicationProvider.(model.Resource).Name()))
 			for _, applicationConfig := range applicationProvider.ApplicationConfigs() {
 				applicationImage, ok := f.TopologyModel.ImageByName(applicationConfig.ImageName)
 				if ok {
-					table.Append([]string{namespace.Name(), applicationProvider.(model.Resource).Name(), applicationConfig.ApplicationName, applicationImage.ImageName(), applicationImage.ImageVersion(),
-						applicationImage.ImageFullName()})
+					sb.WriteString(fmt.Sprintf("Image name: %s\n", applicationImage.ImageName()))
+					sb.WriteString(fmt.Sprintf("Image version: %s\n", applicationImage.ImageVersion()))
+					sb.WriteString(fmt.Sprintf("Image full name: %s\n", applicationImage.ImageFullName()))
 				} else {
-					table.Append([]string{namespace.Name(), applicationProvider.(model.Resource).Name(), applicationConfig.ApplicationName, "NA", "NA",
-						applicationConfig.ImageName})
+					sb.WriteString(fmt.Sprintf("Image name: %s\n", "NA"))
+					sb.WriteString(fmt.Sprintf("Image version: %s\n", "NA"))
+					sb.WriteString(fmt.Sprintf("Image full name: %s\n", applicationConfig.ImageName))
 				}
 			}
 		}
 	}
-	table.Render()
 
 	rw.WriteHeader(http.StatusOK)
 	rw.Header().Set("Content-Type", "application/text")
