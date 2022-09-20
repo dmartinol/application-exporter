@@ -19,6 +19,11 @@ import (
 
 func main() {
 	log.InitLogger()
+	if _, ok := os.LookupEnv("CONTAINER_MODE"); ok {
+		logger.Infof("Running in CONTAINER_MODE")
+	} else {
+		logger.Infof("Running in LOCAL_MODE")
+	}
 	startServer()
 }
 
@@ -26,8 +31,6 @@ var kubeconfig *string
 var router = mux.NewRouter()
 
 func startServer() {
-	kubeconfig = initKubeconfig()
-
 	router.Path("/inventory").Queries("type", "{filter}").HandlerFunc(inventoryHandler).Name("inventoryHandler")
 	router.Path("/inventory").HandlerFunc(inventoryHandler).Name("inventoryHandler")
 
@@ -85,12 +88,15 @@ func initKubeconfig() *string {
 }
 
 func connectCluster() (*rest.Config, error) {
-	//Load config for Openshift's go-client from kubeconfig file
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		return nil, err
+	if _, ok := os.LookupEnv("CONTAINER_MODE"); ok {
+		return rest.InClusterConfig()
+	} else {
+		if kubeconfig == nil {
+			kubeconfig = initKubeconfig()
+		}
+		//Load config for Openshift's go-client from kubeconfig file
+		return clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	}
-	return config, err
 }
 
 func homeDir() string {
