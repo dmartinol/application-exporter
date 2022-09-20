@@ -88,10 +88,10 @@ func (f Formatter) text(rw http.ResponseWriter) {
 			for _, applicationConfig := range applicationProvider.ApplicationConfigs() {
 				applicationImage, ok := f.TopologyModel.ImageByName(applicationConfig.ImageName)
 				if ok {
-					table.Append([]string{namespace.Name(), applicationProvider.(model.Resource).Kind(), applicationConfig.ApplicationName, applicationImage.ImageName(), applicationImage.ImageVersion(),
+					table.Append([]string{namespace.Name(), applicationProvider.(model.Resource).Name(), applicationConfig.ApplicationName, applicationImage.ImageName(), applicationImage.ImageVersion(),
 						applicationImage.ImageFullName()})
 				} else {
-					table.Append([]string{namespace.Name(), applicationProvider.(model.Resource).Kind(), applicationConfig.ApplicationName, applicationConfig.ImageName, "NA",
+					table.Append([]string{namespace.Name(), applicationProvider.(model.Resource).Name(), applicationConfig.ApplicationName, "NA", "NA",
 						applicationConfig.ImageName})
 				}
 			}
