@@ -31,34 +31,11 @@ func startServer() {
 	router.Path("/inventory").Queries("type", "{filter}").HandlerFunc(inventoryHandler).Name("inventoryHandler")
 	router.Path("/inventory").HandlerFunc(inventoryHandler).Name("inventoryHandler")
 
-	router.Path("/articles/{id:[0-9]+}").Queries("key", "{key}").HandlerFunc(YourHandler).Name("YourHandler")
-	router.Path("/articles/{id:[0-9]+}").HandlerFunc(YourHandler)
-
-	// mux := http.NewServeMux()
-	// mux.HandleFunc("/inventory?*", inventoryHandler)
-	// mux.HandleFunc("/inventory", inventoryHandler)
-
 	url := "localhost:" + serverPortOrDefault()
 	logger.Infof("Starting listener as %s", url)
-	// log.Fatal(http.ListenAndServe(url, mux))
 	if err := http.ListenAndServe(url, router); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func YourHandler(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	key := r.FormValue("key")
-
-	u, err := router.Get("YourHandler").URL("id", id, "key", key)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
-	// Output:
-	// /articles/10?key=[key]
-	w.Write([]byte(u.String()))
 }
 
 func serverPortOrDefault() string {
