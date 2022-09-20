@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/go-toolset:latest as builder
+FROM ubi8/go-toolset:latest as builder
 
 WORKDIR /app
 
@@ -8,15 +8,12 @@ RUN go mod download
 
 COPY *.go ./
 COPY pkg/ ./pkg/
-COPY pkg/ ./pkg/
-COPY pkg/ ./pkg/
 
-# RUN CGO_ENABLED=0 GOOS=linux go build -v -o /exporter exporter.go
-# RUN CGO_ENABLED=0 GOOS=linux go build -mod=readonly  -v -o /exporter
 RUN ls -lh /tmp/
-RUN go build -v -o /tmp/exporter exporter.go
+# RUN go build -v -o /tmp/exporter exporter.go
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=readonly  -v -o /tmp/exporter
 RUN ls -lh /tmp/
-FROM registry.access.redhat.com/ubi8/ubi-minimal AS runner
+FROM ubi8/ubi-minimal AS runner
 COPY --from=builder /tmp/exporter /go/bin/exporter
 RUN ls -la /go/bin/exporter
 
