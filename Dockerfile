@@ -17,4 +17,4 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal AS runner
 COPY --from=builder /tmp/exporter /go/bin/exporter
 EXPOSE 8080
 ENV SERVERPORT=8080
-ENTRYPOINT ["/exporter"]
+ENTRYPOINT ["/go/bin/exporter"]
