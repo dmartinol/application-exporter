@@ -3,7 +3,7 @@ package model
 import (
 	"strings"
 
-	logger "github.com/dmartinol/deployment-exporter/pkg/log"
+	logger "github.com/dmartinol/application-exporter/pkg/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	logger "github.com/dmartinol/deployment-exporter/pkg/log"
+	logger "github.com/dmartinol/application-exporter/pkg/log"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"

@@ -1,4 +1,4 @@
-module github.com/dmartinol/deployment-exporter
+module github.com/dmartinol/application-exporter
 
 go 1.19
 

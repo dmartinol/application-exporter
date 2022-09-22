@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	logger "github.com/dmartinol/deployment-exporter/pkg/log"
+	logger "github.com/dmartinol/application-exporter/pkg/log"
 
 	"github.com/gorilla/mux"
 	"k8s.io/client-go/rest"

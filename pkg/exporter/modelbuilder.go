@@ -3,8 +3,8 @@ package exporter
 import (
 	"context"
 
-	logger "github.com/dmartinol/deployment-exporter/pkg/log"
-	model "github.com/dmartinol/deployment-exporter/pkg/model"
+	logger "github.com/dmartinol/application-exporter/pkg/log"
+	model "github.com/dmartinol/application-exporter/pkg/model"
 	appsv1 "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
 	imagesv1 "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
 	v1 "k8s.io/api/core/v1"

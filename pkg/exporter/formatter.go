@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	logger "github.com/dmartinol/deployment-exporter/pkg/log"
-	"github.com/dmartinol/deployment-exporter/pkg/model"
+	logger "github.com/dmartinol/application-exporter/pkg/log"
+	"github.com/dmartinol/application-exporter/pkg/model"
 )
 
 type ByNamespaceName []model.NamespaceModel

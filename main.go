@@ -1,8 +1,8 @@
 package main
 
 import (
-	exp "github.com/dmartinol/deployment-exporter/pkg/exporter"
-	log "github.com/dmartinol/deployment-exporter/pkg/log"
+	exp "github.com/dmartinol/application-exporter/pkg/exporter"
+	log "github.com/dmartinol/application-exporter/pkg/log"
 )
 
 func main() {

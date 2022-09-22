@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	logger "github.com/dmartinol/deployment-exporter/pkg/log"
+	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/openshift/api/image/docker10"
 	images "github.com/openshift/api/image/v1"
 )

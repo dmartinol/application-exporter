@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	logger "github.com/dmartinol/deployment-exporter/pkg/log"
+	logger "github.com/dmartinol/application-exporter/pkg/log"
 )
 
 type Reporter interface {
