@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/dmartinol/deployment-exporter/pkg/log"
 	logger "github.com/dmartinol/deployment-exporter/pkg/log"
 
 	"k8s.io/client-go/rest"
@@ -25,14 +24,14 @@ func (app *ExporterApp) Run() {
 	if err != nil {
 		logger.Fatalf("Cannot connect cluster: %s", err)
 	}
-	log.Info("Cluster connected")
+	logger.Info("Cluster connected")
 
 	topology, err := NewModelBuilder(app.config).BuildForKubeConfig(kubeConfig)
 	if err != nil {
 		logger.Fatalf("Cannot build data model", err)
 	}
 
-	fmt := NewFormatterForContentType(app.config.ContentType())
+	fmt := NewFormatterForConfig(app.config)
 	output := fmt.Format(topology)
 	reporter := NewFileReporter(app.config)
 	reporter.Report(output)

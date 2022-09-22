@@ -96,7 +96,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 		builder.buildApplications(namespace, resource)
 	}
 
-	logger.Info("=== StatefulSets ===")
+	logger.Debug("=== StatefulSets ===")
 	statefulSets, err := builder.appsV1Client.StatefulSets(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err

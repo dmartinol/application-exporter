@@ -16,23 +16,23 @@ func (a ByNamespaceName) Less(i, j int) bool { return a[i].Name() < a[j].Name() 
 func (a ByNamespaceName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type Formatter struct {
-	contentType ContentType
+	config *Config
 }
 
-func NewFormatterForContentType(contentType ContentType) Formatter {
-	return Formatter{contentType: contentType}
+func NewFormatterForConfig(config *Config) Formatter {
+	return Formatter{config: config}
 }
 
 func (f Formatter) Format(topologyModel *model.TopologyModel) *strings.Builder {
-	logger.Infof("Received formatting request by %s", f.contentType)
-	switch f.contentType {
+	logger.Infof("Received formatting request by %s", f.config.ContentType())
+	switch f.config.ContentType() {
 	case Text:
 		return f.text(topologyModel)
 	case CSV:
 		return f.csv(topologyModel)
 	}
 	var sb = &strings.Builder{}
-	sb.WriteString(fmt.Sprintf("Unmanaged content type %s", f.contentType))
+	sb.WriteString(fmt.Sprintf("Unmanaged content type %s", f.config.ContentType()))
 	return sb
 }
 
@@ -76,7 +76,7 @@ func (f Formatter) csv(topologyModel *model.TopologyModel) *strings.Builder {
 
 	for _, namespace := range f.sortedNamespaces(topologyModel) {
 		for _, applicationProvider := range namespace.AllApplicationProviders() {
-			logger.Infof("## %s %s", applicationProvider.(model.Resource).Kind(), applicationProvider.(model.Resource).Name())
+			logger.Debugf("## %s %s", applicationProvider.(model.Resource).Kind(), applicationProvider.(model.Resource).Name())
 			for _, applicationConfig := range applicationProvider.ApplicationConfigs() {
 				var record []string
 				record = append(record, namespace.Name(), applicationConfig.ApplicationName)

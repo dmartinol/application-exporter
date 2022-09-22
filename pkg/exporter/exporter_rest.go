@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/dmartinol/deployment-exporter/pkg/log"
 	logger "github.com/dmartinol/deployment-exporter/pkg/log"
 
 	"github.com/gorilla/mux"
@@ -33,21 +32,21 @@ func (s *ExporterService) Run() {
 	url := fmt.Sprintf("localhost:%d", s.config.ServerPort())
 	logger.Infof("Starting listener as %s", url)
 	if err := http.ListenAndServe(url, router); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 }
 
 func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Request) {
-	contentType := s.config.ContentType()
+	newConfig := s.config
 
 	contentTypeArg := req.FormValue("content-type")
 	if contentTypeArg != "" {
-		contentType = ContentTypeFromString(contentTypeArg)
+		newConfig.contentType = ContentTypeFromString(contentTypeArg)
 	}
 
 	if req.URL.Path == "/inventory" {
 		if req.Method == "GET" {
-			s.inventory(contentType, rw)
+			s.inventory(newConfig, rw)
 		} else {
 			http.Error(rw, fmt.Sprintf("Expect method GET at /, got %v", req.Method), http.StatusMethodNotAllowed)
 		}
@@ -57,19 +56,19 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 	}
 }
 
-func (s *ExporterService) inventory(contentType ContentType, rw http.ResponseWriter) {
+func (s *ExporterService) inventory(newConfig *Config, rw http.ResponseWriter) {
 	kubeConfig, err := s.connectCluster()
 	if err != nil {
 		http.Error(rw, fmt.Sprintf("Cannot connect cluster: %s", err), http.StatusInternalServerError)
 	}
-	log.Info("Cluster connected")
+	logger.Info("Cluster connected")
 
 	topology, err := NewModelBuilder(s.config).BuildForKubeConfig(kubeConfig)
 	if err != nil {
 		http.Error(rw, fmt.Sprintf("Cannot build data model: %s", err), http.StatusInternalServerError)
 	}
 
-	fmt := NewFormatterForContentType(contentType)
+	fmt := NewFormatterForConfig(newConfig)
 	output := fmt.Format(topology)
 	reporter := NewHttpReporter(s.config, rw)
 	reporter.Report(output)
