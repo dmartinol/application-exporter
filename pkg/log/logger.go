@@ -10,17 +10,13 @@ import (
 
 var logger *zap.SugaredLogger
 
-func InitLogger() {
+func InitLogger(runInVM bool, logLevel string) {
 	pe := zap.NewProductionEncoderConfig()
 
 	fileEncoder := zapcore.NewJSONEncoder(pe)
 	pe.EncodeTime = zapcore.ISO8601TimeEncoder
 	consoleEncoder := zapcore.NewConsoleEncoder(pe)
 
-	logLevel := "info"
-	if level, ok := os.LookupEnv("LOG_LEVEL"); ok {
-		logLevel = level
-	}
 	level, err := zapcore.ParseLevel(logLevel)
 	if err != nil {
 		log.Printf("No logging level or wrong value provided as \"%s\"\n", logLevel)
@@ -28,7 +24,7 @@ func InitLogger() {
 	}
 	log.Printf("Logging at %s level", level.String())
 	var core zapcore.Core
-	if _, ok := os.LookupEnv("CONTAINER_MODE"); !ok {
+	if runInVM {
 		logFileName := "exporter.log"
 		logFile, _ := os.OpenFile(logFileName, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 		core = zapcore.NewTee(

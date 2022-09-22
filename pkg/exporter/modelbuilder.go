@@ -1,8 +1,7 @@
-package builder
+package exporter
 
 import (
 	"context"
-	"os"
 
 	logger "github.com/dmartinol/deployment-exporter/pkg/log"
 	model "github.com/dmartinol/deployment-exporter/pkg/model"
@@ -17,6 +16,8 @@ import (
 )
 
 type ModelBuilder struct {
+	config *Config
+
 	appsClient   *appsv1.AppsV1Client
 	imagesClient *imagesv1.ImageV1Client
 	appsV1Client *k8appsv1client.AppsV1Client
@@ -26,13 +27,13 @@ type ModelBuilder struct {
 	namespaceModel *model.NamespaceModel
 }
 
-func NewModelBuilder() *ModelBuilder {
-	builder := ModelBuilder{}
+func NewModelBuilder(config *Config) *ModelBuilder {
+	builder := ModelBuilder{config: config}
 	builder.topologyModel = model.NewTopologyModel()
 	return &builder
 }
 
-func (builder *ModelBuilder) BuildForConfig(config *rest.Config) (*model.TopologyModel, error) {
+func (builder *ModelBuilder) BuildForKubeConfig(config *rest.Config) (*model.TopologyModel, error) {
 	var err error
 
 	builder.appsClient, err = appsv1.NewForConfig(config)
@@ -63,20 +64,12 @@ func (builder *ModelBuilder) BuildForConfig(config *rest.Config) (*model.Topolog
 func (builder *ModelBuilder) buildCluster() error {
 	var namespaces *v1.NamespaceList
 	var err error
-	if filter, ok := os.LookupEnv("NS_SELECTOR"); ok {
-		logger.Infof("Filtering by %s", filter)
-		namespaces, err = builder.coreClient.Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: filter})
-		if err != nil {
-			logger.Warnf("Cannot list namespaces by filter %s: %s", filter, err)
-			return err
-		}
-	} else {
-		logger.Infof("No namespace filter applied")
-		namespaces, err = builder.coreClient.Namespaces().List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			logger.Warnf("Cannot list namespaces: %s", err)
-			return err
-		}
+	nsSelector := builder.config.NamespaceSelector()
+	logger.Infof("Filtering by %s", nsSelector)
+	namespaces, err = builder.coreClient.Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: nsSelector})
+	if err != nil {
+		logger.Warnf("Cannot list namespaces by selector %s: %s", nsSelector, err)
+		return err
 	}
 	for _, namespace := range namespaces.Items {
 		err := builder.buildNamespace(namespace.Name)

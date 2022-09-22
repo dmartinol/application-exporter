@@ -1,4 +1,4 @@
-package main
+package exporter
 
 import (
 	"flag"
@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/dmartinol/deployment-exporter/pkg/builder"
-	"github.com/dmartinol/deployment-exporter/pkg/formatter"
 	log "github.com/dmartinol/deployment-exporter/pkg/log"
 	logger "github.com/dmartinol/deployment-exporter/pkg/log"
 
@@ -17,43 +15,39 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func main() {
-	log.InitLogger()
-	if _, ok := os.LookupEnv("CONTAINER_MODE"); ok {
-		logger.Infof("Running in CONTAINER_MODE")
-	} else {
-		logger.Infof("Running in LOCAL_MODE")
-	}
-	startServer()
-}
-
 var kubeconfig *string
 var router = mux.NewRouter()
 
-func startServer() {
-	router.Path("/inventory").Queries("type", "{filter}").HandlerFunc(inventoryHandler).Name("inventoryHandler")
-	router.Path("/inventory").HandlerFunc(inventoryHandler).Name("inventoryHandler")
+type ExporterService struct {
+	config *Config
+}
 
-	url := "localhost:" + serverPortOrDefault()
+func NewExporterService(config *Config) *ExporterService {
+	return &ExporterService{config: config}
+}
+
+func (s *ExporterService) Run() {
+	router.Path("/inventory").Queries("content-type", "{filter}").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
+	router.Path("/inventory").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
+
+	url := fmt.Sprintf("localhost:%d", s.config.ServerPort())
 	logger.Infof("Starting listener as %s", url)
 	if err := http.ListenAndServe(url, router); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func serverPortOrDefault() string {
-	if port, ok := os.LookupEnv("SERVER_PORT"); ok {
-		return port
-	}
-	return "8080"
-}
+func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Request) {
+	contentType := s.config.ContentType()
 
-func inventoryHandler(rw http.ResponseWriter, req *http.Request) {
-	contentType := req.FormValue("type")
+	contentTypeArg := req.FormValue("content-type")
+	if contentTypeArg != "" {
+		contentType = ContentTypeFromString(contentTypeArg)
+	}
 
 	if req.URL.Path == "/inventory" {
 		if req.Method == "GET" {
-			inventory(contentType, rw)
+			s.inventory(contentType, rw)
 		} else {
 			http.Error(rw, fmt.Sprintf("Expect method GET at /, got %v", req.Method), http.StatusMethodNotAllowed)
 		}
@@ -63,43 +57,45 @@ func inventoryHandler(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func inventory(contentType string, rw http.ResponseWriter) {
-	config, err := connectCluster()
+func (s *ExporterService) inventory(contentType ContentType, rw http.ResponseWriter) {
+	kubeConfig, err := s.connectCluster()
 	if err != nil {
 		http.Error(rw, fmt.Sprintf("Cannot connect cluster: %s", err), http.StatusInternalServerError)
 	}
 	log.Info("Cluster connected")
 
-	topology, err := builder.NewModelBuilder().BuildForConfig(config)
+	topology, err := NewModelBuilder(s.config).BuildForKubeConfig(kubeConfig)
 	if err != nil {
 		http.Error(rw, fmt.Sprintf("Cannot build data model: %s", err), http.StatusInternalServerError)
 	}
 
-	fmt := formatter.Formatter{TopologyModel: *topology}
-	fmt.Format(formatter.ContentTypeFromString(contentType), rw)
+	fmt := NewFormatterForContentType(contentType)
+	output := fmt.Format(topology)
+	reporter := NewHttpReporter(s.config, rw)
+	reporter.Report(output)
 }
 
-func initKubeconfig() *string {
-	if home := homeDir(); home != "" {
+func (s *ExporterService) initKubeconfig() *string {
+	if home := s.homeDir(); home != "" {
 		return flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "")
 	} else {
 		return flag.String("kubeconfig", "", "")
 	}
 }
 
-func connectCluster() (*rest.Config, error) {
-	if _, ok := os.LookupEnv("CONTAINER_MODE"); ok {
+func (s *ExporterService) connectCluster() (*rest.Config, error) {
+	if s.config.RunInContainer() {
 		return rest.InClusterConfig()
 	} else {
 		if kubeconfig == nil {
-			kubeconfig = initKubeconfig()
+			kubeconfig = s.initKubeconfig()
 		}
 		//Load config for Openshift's go-client from kubeconfig file
 		return clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	}
 }
 
-func homeDir() string {
+func (s *ExporterService) homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
 		return h
 	}

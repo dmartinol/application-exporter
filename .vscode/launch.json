@@ -16,14 +16,19 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "exporter.go"
+            "program": "main.go"
         },
         {
             "name": "Launch Exporter with options",
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "exporter.go",
+            "program": "main.go",
+            "args": [
+                "-content-type=CSV",
+                "-as-service",
+                "-server-port=8181"
+            ],
             "env": {
                 "SERVER_PORT": "8181",
                 "NS_SELECTOR": "kubernetes.io/metadata.name=kafka",
