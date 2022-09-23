@@ -34,8 +34,9 @@ func (i *Image) ImageName() string {
 	return imageName
 }
 func (i *Image) ImageVersion() string {
-	if strings.Contains(i.FullName, ":") {
-		return strings.Split(i.FullName, ":")[1]
+	imageName := i.FullName[strings.LastIndex(i.FullName, "/")+1:]
+	if strings.Contains(imageName, ":") {
+		return strings.Split(imageName, ":")[1]
 	}
 	return "NA"
 }
