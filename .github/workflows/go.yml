@@ -1,0 +1,44 @@
+name: Go
+
+on:
+  release:
+    branches: [ "main" ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.18
+    - name: Build binaries
+      run: |
+        BUILD_VERSION=${{  github.ref_name }}
+        echo Build version is: $BUILD_VERSION
+        mkdir bin
+        GOOS=windows GOARCH=386 go build -o bin/inventory-exporter-win-386.exe "-X main.BuildVersion=$BUILD_VERSION" main.go
+        GOOS=windows GOARCH=amd64 go build -o bin/inventory-exporter-win-amd64.exe "-X main.BuildVersion=$BUILD_VERSION" main.go
+        GOOS=darwin GOARCH=amd64 go build -o bin/inventory-exporter-darwin-amd64 -ldflags "-X main.BuildVersion=$BUILD_VERSION" main.go
+        GOOS=darwin GOARCH=arm64 go build -o bin/inventory-exporter-darwin-arm64 "-X main.BuildVersion=$BUILD_VERSION" main.go
+        zip --junk-paths -r inventory-exporter bin
+    - name: Create release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+    - name: Upload binaries
+      id: upload-release-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./inventory-exporter.zip
+        asset_name: inventory-exporter.zip
+        asset_content_type: application/zip
