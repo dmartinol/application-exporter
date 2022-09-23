@@ -17,8 +17,8 @@ jobs:
       run: |
         BUILD_VERSION=${{  github.ref_name }}
         echo Build version is: ${BUILD_VERSION}
-        docker login --username ${{ secrets.REGISTRY_USERNAME }} --password ${{ secrets.REGISTRY_PASSWORD }} ${{ env.REGISTRY }}
         IMAGE_NAME=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}:${BUILD_VERSION}
+        docker login --username="${{ secrets.REGISTRY_USERNAME }}" --password="${{ secrets.REGISTRY_PASSWORD }}" ${{ env.IMAGE_REGISTRY }}
         echo Building image: ${IMAGE_NAME}
         
         docker build --build-arg BUILD_VERSION=${BUILD_VERSION} -t ${IMAGE_NAME} .
