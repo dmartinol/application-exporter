@@ -26,7 +26,7 @@ func NewExporterService(config *Config) *ExporterService {
 }
 
 func (s *ExporterService) Run() {
-	router.Path("/inventory").Queries("content-type", "{filter}").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
+	router.Path("/inventory").Queries("content-type", "{content-type}").Queries("ns-selector", "{ns-selector}").Queries("output", "{output}").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
 	router.Path("/inventory").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
 
 	url := fmt.Sprintf("localhost:%d", s.config.ServerPort())
@@ -42,6 +42,14 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 	contentTypeArg := req.FormValue("content-type")
 	if contentTypeArg != "" {
 		newConfig.contentType = ContentTypeFromString(contentTypeArg)
+	}
+	namespaceSelector := req.FormValue("ns-selector")
+	if namespaceSelector != "" {
+		newConfig.namespaceSelector = namespaceSelector
+	}
+	outputFileName := req.FormValue("output")
+	if outputFileName != "" {
+		newConfig.outputFileName = outputFileName
 	}
 
 	if req.URL.Path == "/inventory" {

@@ -25,7 +25,7 @@ func NewFileReporter(config *Config) FileReporter {
 }
 
 func (r *FileReporter) Report(data *strings.Builder) {
-	file, err := os.Create(fmt.Sprintf("%s.%s", r.config.outputFileName, r.config.contentType.Suffix()))
+	file, err := os.Create(fmt.Sprintf("%s.%s", r.config.OutputFileName(), r.config.contentType.Suffix()))
 	logger.Infof("Printing output on %s", file.Name())
 	if err != nil {
 		log.Fatalln("Error creating output file", err)
@@ -51,6 +51,6 @@ func (r *HttpReporter) Report(data *strings.Builder) {
 	// r.rw.WriteHeader(http.StatusOK)
 
 	r.rw.Header().Set("Content-Type", r.config.contentType.HttpContentType())
-	r.rw.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%s.%s", r.config.outputFileName, r.config.contentType.Suffix()))
+	r.rw.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%s.%s", r.config.OutputFileName(), r.config.contentType.Suffix()))
 	r.rw.Write([]byte(data.String()))
 }

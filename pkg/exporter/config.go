@@ -231,3 +231,6 @@ func (c *Config) ServerPort() int {
 func (c *Config) ContentType() ContentType {
 	return c.contentType
 }
+func (c *Config) OutputFileName() string {
+	return c.outputFileName
+}
