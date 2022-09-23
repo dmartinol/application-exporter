@@ -24,8 +24,18 @@ jobs:
         #GOOS=windows GOARCH=amd64 go build -o bin/inventory-exporter-win-amd64.exe -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
         GOOS=darwin GOARCH=amd64 go build -o bin/inventory-exporter-darwin-amd64 -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
         #GOOS=darwin GOARCH=arm64 go build -o bin/inventory-exporter-darwin-arm64 -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
+        zip --junk-paths -r inventory-exporter bin/
+    - name: Get release
+      id: get_release
+      uses: bruceadams/get-release@v1.2.3
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
     - name: Upload binaries
-      uses: actions/upload-artifact@v3
-      with: 
-        name: binaries
-        path: bin
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        asset_path: ./inventory-exporter.zip
+        asset_name: inventory-exporter.zip
+        asset_content_type: application/zip
