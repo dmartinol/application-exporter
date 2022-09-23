@@ -9,9 +9,9 @@ Go application to export the configuration of applications deployed in OpenShift
 ## CI pipeline
 A GitHub action runs at every new release, and generates the following artifacts:
 * The `inventory-exporter.tar` artifact is added to the [release page](https://github.com/dmartinol/application-exporter/releases) after some time
-* The updated container image is published on the public repository [quay.io/dmartino](quay.io/dmartino)
+* The updated container image is published on the public repository [quay.io/dmartino](https://quay.io/dmartino)
 
-The version is printed as the application starts, as:
+The version is printed at the application startup, as in:
 ```bash
 2022-09-23T17:21:58.411+0200	info	The version of ./bin/inventory-exporter-darwin-amd64 is : 0.1.1
 ```
@@ -36,9 +36,9 @@ Usage of ./application-exporter:
 
 ### Environment variables
 The following environment variables can override the command arguments:
-* `AS_SERVICE`: any value
+* `AS_SERVICE`: any value, overrides `-as-service` command line argument
 * `IN_CONTAINER`: any value
-* `LOG_LEVEL`: one of debug, info, warn
+* `LOG_LEVEL`: overrides `-log-level` command line argument
 * `NS_SELECTOR`: overrides `-ns-selector` command line argument
 * `CONTENT_TYPE`: overrides `-content-type` command line argument
 * `SERVER_PORT`: overrides `-server-port` command line argument
@@ -47,7 +47,7 @@ The following environment variables can override the command arguments:
 ### Running with `go run`
 Requirements:
 * Active OpenShift login
-* `go` at least version `1.19`
+* `go`, at least version `1.19`
 * Clone this git repository
 
 Run the following from the root folder of the cloned repository:
@@ -74,7 +74,7 @@ Run the following from the folder where you extracted the release archive:
 ```
 ./bin/inventory-exporter-darwin-amd64
 ```
-Note: the actual file name might change depending on the actual target machine and OC.
+Note: the file name might change depending on the actual target machine and OC.
 
 All the [command line arguments](#command-line-arguments) and [environment variables](#environment-variables) described before are also applicable.
 
