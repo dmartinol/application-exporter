@@ -29,7 +29,7 @@ func (s *ExporterService) Run() {
 	router.Path("/inventory").Queries("content-type", "{content-type}").Queries("ns-selector", "{ns-selector}").Queries("output", "{output}").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
 	router.Path("/inventory").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
 
-	url := fmt.Sprintf("localhost:%d", s.config.ServerPort())
+	url := fmt.Sprintf("0.0.0.0:%d", s.config.ServerPort())
 	logger.Infof("Starting listener as %s", url)
 	if err := http.ListenAndServe(url, router); err != nil {
 		logger.Fatal(err)
