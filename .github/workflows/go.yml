@@ -8,6 +8,7 @@ on:
 env:
   IMAGE_REGISTRY: quay.io
   IMAGE_REPOSITORY: dmartino
+  IMAGE_NAME: application-exporter
 jobs:
   build-image-and-push:
     runs-on: ubuntu-latest
@@ -17,12 +18,12 @@ jobs:
       run: |
         BUILD_VERSION=${{  github.ref_name }}
         echo Build version is: ${BUILD_VERSION}
-        IMAGE_NAME=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}:${BUILD_VERSION}
+        IMAGE_FULL=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}:${BUILD_VERSION}
+        echo Building image: ${IMAGE_FULL}
         docker login --username="${{ secrets.REGISTRY_USERNAME }}" --password="${{ secrets.REGISTRY_PASSWORD }}" ${{ env.IMAGE_REGISTRY }}
-        echo Building image: ${IMAGE_NAME}
         
-        docker build --build-arg BUILD_VERSION=${BUILD_VERSION} -t ${IMAGE_NAME} .
-        docker push ${IMAGE_NAME}
+        docker build --build-arg BUILD_VERSION=${BUILD_VERSION} -t ${IMAGE_FULL} .
+        docker push ${IMAGE_FULL}
   build-binaries-and-publish:
     runs-on: ubuntu-latest
     steps:
