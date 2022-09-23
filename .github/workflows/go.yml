@@ -24,7 +24,7 @@ jobs:
         #GOOS=windows GOARCH=amd64 go build -o bin/inventory-exporter-win-amd64.exe -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
         GOOS=darwin GOARCH=amd64 go build -o bin/inventory-exporter-darwin-amd64 -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
         #GOOS=darwin GOARCH=arm64 go build -o bin/inventory-exporter-darwin-arm64 -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
-        zip --junk-paths -r inventory-exporter bin/
+        tar -cvf inventory-exporter.tar --preserve-permissions bin/
     - name: Get release
       id: get_release
       uses: bruceadams/get-release@v1.2.3
@@ -36,6 +36,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release.outputs.upload_url }}
-        asset_path: ./inventory-exporter.zip
-        asset_name: inventory-exporter.zip
-        asset_content_type: application/zip
+        asset_path: ./inventory-exporter.tar
+        asset_name: inventory-exporter.tar
+        asset_content_type: application/x-tar
