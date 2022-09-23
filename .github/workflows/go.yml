@@ -15,12 +15,12 @@ jobs:
     - name: Build binaries
       run: |
         BUILD_VERSION=${{  github.ref_name }}
-        echo Build version is: $BUILD_VERSION
+        echo Build version is: ${BUILD_VERSION}
         mkdir bin
-        GOOS=windows GOARCH=386 go build -o bin/inventory-exporter-win-386.exe "-X main.BuildVersion=$BUILD_VERSION" main.go
-        GOOS=windows GOARCH=amd64 go build -o bin/inventory-exporter-win-amd64.exe "-X main.BuildVersion=$BUILD_VERSION" main.go
-        GOOS=darwin GOARCH=amd64 go build -o bin/inventory-exporter-darwin-amd64 -ldflags "-X main.BuildVersion=$BUILD_VERSION" main.go
-        GOOS=darwin GOARCH=arm64 go build -o bin/inventory-exporter-darwin-arm64 "-X main.BuildVersion=$BUILD_VERSION" main.go
+        GOOS=windows GOARCH=386 go build -o bin/inventory-exporter-win-386.exe "-X main.BuildVersion=${BUILD_VERSION}" main.go
+        GOOS=windows GOARCH=amd64 go build -o bin/inventory-exporter-win-amd64.exe "-X main.BuildVersion=${BUILD_VERSION}" main.go
+        GOOS=darwin GOARCH=amd64 go build -o bin/inventory-exporter-darwin-amd64 -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
+        GOOS=darwin GOARCH=arm64 go build -o bin/inventory-exporter-darwin-arm64 "-X main.BuildVersion=${BUILD_VERSION}" main.go
         zip --junk-paths -r inventory-exporter bin
     - name: Create release
       id: create_release
