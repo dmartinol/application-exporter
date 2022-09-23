@@ -20,10 +20,10 @@ jobs:
         BUILD_VERSION=${{  github.ref_name }}
         echo Build version is: ${BUILD_VERSION}
         mkdir bin
-        #GOOS=windows GOARCH=386 go build -o bin/inventory-exporter-win-386.exe -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
-        #GOOS=windows GOARCH=amd64 go build -o bin/inventory-exporter-win-amd64.exe -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
+        GOOS=windows GOARCH=386 go build -o bin/inventory-exporter-win-386.exe -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
+        GOOS=windows GOARCH=amd64 go build -o bin/inventory-exporter-win-amd64.exe -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
         GOOS=darwin GOARCH=amd64 go build -o bin/inventory-exporter-darwin-amd64 -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
-        #GOOS=darwin GOARCH=arm64 go build -o bin/inventory-exporter-darwin-arm64 -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
+        GOOS=darwin GOARCH=arm64 go build -o bin/inventory-exporter-darwin-arm64 -ldflags "-X main.BuildVersion=${BUILD_VERSION}" main.go
         tar -cvf inventory-exporter.tar --preserve-permissions bin/
     - name: Get release
       id: get_release
