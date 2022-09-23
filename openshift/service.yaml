@@ -72,7 +72,7 @@ parameters:
   from: '[A-Z0-9]{8}'
   generate: expression
   name: APP_NAMESPACE
-- description: App image, e.g. 'quay.io/dmartino/application-exporter:0.1.0' or 'image-registry.openshift-image-registry.svc:5000/NS/application-exporter:latest'
+- description: App image, e.g. 'quay.io/dmartino/application-exporter:0.1.1' or 'image-registry.openshift-image-registry.svc:5000/NS/application-exporter:latest'
   from: '[A-Z0-9]{8}'
   generate: expression
   name: APP_IMAGE

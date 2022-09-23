@@ -153,19 +153,15 @@ func NewConfig() *Config {
 
 func (c *Config) initFromFlags() {
 	asService := flag.Bool("as-service", false, "Run as REST service")
-	inContainer := flag.Bool("in-container", false, "Run in Container")
 	flag.IntVar(&c.serverPort, "server-port", 8080, "Server port (only for REST service mode)")
 	flag.StringVar(&c.logLevel, "log-level", "info", "Log level, one of debug, info, warn")
 	flag.StringVar(&c.namespaceSelector, "ns-selector", "", "Namespace selector, like label1=value1,label2=value2")
-	contentType := flag.String("content-type", "text", "Content type, one of text, CSV, JSON or YAML")
+	contentType := flag.String("content-type", "text", "Content type, one of text, CSV")
 	outputFileName := flag.String("output", "", "Output file name, default is output.<content-type>. File suffix is automatically added")
 	flag.Parse()
 
 	if *asService {
 		c.runAs = Rest
-	}
-	if *inContainer {
-		c.runIn = Container
 	}
 	c.contentType = ContentTypeFromString(*contentType)
 	if *outputFileName != "" {
