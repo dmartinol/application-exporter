@@ -1,5 +1,6 @@
 FROM golang:latest as builder
 
+ARG BUILD_VERSION
 WORKDIR /app
 
 COPY go.mod ./
@@ -10,7 +11,7 @@ COPY *.go ./
 COPY pkg/ ./pkg/
 
 RUN ls -lh /tmp/
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=readonly  -v -o /tmp/exporter
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=readonly  -v -o /tmp/exporter -ldflags "-X main.BuildVersion=$BUILD_VERSION"
 
 FROM alpine:3 as runner
 RUN apk add --no-cache ca-certificates
