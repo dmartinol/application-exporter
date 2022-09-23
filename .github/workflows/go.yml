@@ -1,13 +1,29 @@
 name: Build executable and images
-
 on:
   release:
     branches: [ "main" ]
     types: [published]
     tags:
     - 'v*'
+env:
+  IMAGE_REGISTRY: quay.io
+  IMAGE_REPOSITORY: dmartino
 jobs:
-  build:
+  build-image-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build Docker image and publish
+      run: |
+        BUILD_VERSION=${{  github.ref_name }}
+        echo Build version is: ${BUILD_VERSION}
+        docker login --username ${{ secrets.REGISTRY_USERNAME }} --password ${{ secrets.REGISTRY_PASSWORD }} ${{ env.REGISTRY }}
+        IMAGE_NAME=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}:${BUILD_VERSION}
+        echo Building image: ${IMAGE_NAME}
+        
+        docker build --build-arg BUILD_VERSION=${BUILD_VERSION} -t ${IMAGE_NAME} .
+        docker push ${IMAGE_NAME}
+  build-binaries-and-publish:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
