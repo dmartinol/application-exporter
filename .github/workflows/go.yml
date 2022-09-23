@@ -1,7 +1,9 @@
 name: Go
 
 on:
-  release:
+  push:
+    tags:
+    - 'v*'
     branches: [ "main" ]
 jobs:
   build:
