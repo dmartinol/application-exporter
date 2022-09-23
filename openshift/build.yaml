@@ -1,0 +1,57 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: exporter-build
+objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: application-exporter
+    namespace: ${APP_NAMESPACE}
+- apiVersion: build.openshift.io/v1
+  kind: BuildConfig
+  metadata:
+    name: application-exporter
+    namespace: ${APP_NAMESPACE}
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: application-exporter:latest
+        namespace: ${APP_NAMESPACE}
+    postCommit: {}
+    source:
+      git:
+        uri: ${GIT_REPO}
+        ref: ${GIT_REF}
+      type: Git
+    strategy:
+      type: Docker
+      dockerStrategy:
+        buildArgs:
+        - name: BUILD_VERSION
+          value: ${BUILD_VERSION}
+    triggers:
+    - type: ConfigChange
+parameters:
+- description: App namespace
+  from: '[A-Z0-9]{8}'
+  generate: expression
+  name: APP_NAMESPACE
+- description: Git repo
+  from: '[A-Z0-9]{8}'
+  generate: expression
+  name: GIT_REPO
+  value: https://github.com/dmartinol/application-exporter.git
+- description: Git ref
+  from: '[A-Z0-9]{8}'
+  generate: expression
+  name: GIT_REF
+  value: main
+- description: Build version
+  from: '[A-Z0-9]{8}'
+  generate: expression
+  name: BUILD_VERSION
+  value: latest
+labels:
+  app: application-exporter

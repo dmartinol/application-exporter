@@ -1,0 +1,80 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: exporter-service
+objects:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: exporter-config
+    namespace: ${APP_NAMESPACE}
+  data:
+    SERVER_PORT: '8080'
+    LOG_LEVEL: debug
+    # The namespace selector labels (comma separated sequence of key=value)
+    NS_SELECTOR: infinitySubChart=true
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: application-exporter
+    namespace: ${APP_NAMESPACE}
+  spec:
+    serviceAccountName: application-exporter
+    containers:
+      - image: ${APP_IMAGE}
+        name: application-exporter
+        imagePullPolicy: Always
+        env:
+        - name: SERVER_PORT
+          valueFrom:
+            configMapKeyRef:
+              key: SERVER_PORT
+              name: exporter-config
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: LOG_LEVEL
+              name: exporter-config
+        - name: NS_SELECTOR
+          valueFrom:
+            configMapKeyRef:
+              key: NS_SELECTOR
+              name: exporter-config
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: application-exporter
+    namespace: ${APP_NAMESPACE}
+  spec:
+    ports:
+      - name: http-8080
+        protocol: TCP
+        port: 8080
+        targetPort: 8080
+    selector:
+      app: application-exporter
+    type: ClusterIP
+- kind: Route
+  apiVersion: route.openshift.io/v1
+  metadata:
+    name: inventory-exporter
+    namespace: ${APP_NAMESPACE}
+  spec:
+    to:
+      kind: Service
+      name: application-exporter
+      weight: 100
+    path: /inventory
+    port:
+      targetPort: http-8080
+parameters:
+- description: App namespace
+  from: '[A-Z0-9]{8}'
+  generate: expression
+  name: APP_NAMESPACE
+- description: App image, e.g. 'quay.io/dmartino/application-exporter:0.1.0' or 'image-registry.openshift-image-registry.svc:5000/NS/application-exporter:latest'
+  from: '[A-Z0-9]{8}'
+  generate: expression
+  name: APP_IMAGE
+labels:
+  app: application-exporter

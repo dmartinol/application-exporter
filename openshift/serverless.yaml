@@ -1,0 +1,59 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: exporter-serverless
+objects:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: exporter-config-knative
+    namespace: ${APP_NAMESPACE}
+  data:
+    SERVER_PORT: '8080'
+    LOG_LEVEL: info
+    # The namespace selector labels (comma separated sequence of key=value)
+    NS_SELECTOR: infinitySubChart=true
+- apiVersion: serving.knative.dev/v1
+  kind: Service
+  metadata:
+    name: application-exporter-knative
+    namespace: ${APP_NAMESPACE}
+  spec:
+    env:
+    template:
+      metadata:
+        annotations:
+          autoscaling.knative.dev/min-scale: "0"
+      spec:
+        serviceAccountName: application-exporter
+        containers:
+          - image: ${APP_IMAGE}
+            name: application-exporter-knative
+            imagePullPolicy: Always
+            env:
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: SERVER_PORT
+                  name: exporter-config
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  key: LOG_LEVEL
+                  name: exporter-config
+            - name: NS_SELECTOR
+              valueFrom:
+                configMapKeyRef:
+                  key: NS_SELECTOR
+                  name: exporter-config
+parameters:
+- description: App namespace
+  from: '[A-Z0-9]{8}'
+  generate: expression
+  name: APP_NAMESPACE
+- description: App image, e.g. 'quay.io/dmartino/application-exporter:0.1.0' or 'image-registry.openshift-image-registry.svc:5000/NS/application-exporter:latest'
+  from: '[A-Z0-9]{8}'
+  generate: expression
+  name: APP_IMAGE
+labels:
+  app: application-exporter-knative
