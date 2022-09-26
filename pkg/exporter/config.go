@@ -132,6 +132,7 @@ type Config struct {
 	namespaceSelector string
 	contentType       ContentType
 	outputFileName    string
+	withResources     bool
 }
 
 func NewConfig() *Config {
@@ -158,6 +159,7 @@ func (c *Config) initFromFlags() {
 	flag.StringVar(&c.namespaceSelector, "ns-selector", "", "Namespace selector, like label1=value1,label2=value2")
 	contentType := flag.String("content-type", "text", "Content type, one of text, CSV")
 	outputFileName := flag.String("output", "", "Output file name, default is output.<content-type>. File suffix is automatically added")
+	flag.BoolVar(&c.withResources, "with-resources", false, "Include resource configuration")
 	flag.Parse()
 
 	if *asService {
@@ -199,8 +201,8 @@ func (c *Config) String() string {
 	if c.RunAsScript() {
 		serverPort = "NA"
 	}
-	return fmt.Sprintf("Run as: %s, Run in: %v, Server port: %s, Log level: %s, Namespace selector: \"%s\", Content type: %s, Output filename: %s\n",
-		c.runAs, c.runIn, serverPort, c.logLevel, c.namespaceSelector, c.contentType, c.outputFileName)
+	return fmt.Sprintf("Run as: %s, Run in: %v, Server port: %s, Log level: %s, Namespace selector: \"%s\", Content type: %s, Output filename: %s, With resources: %v\n",
+		c.runAs, c.runIn, serverPort, c.logLevel, c.namespaceSelector, c.contentType, c.outputFileName, c.withResources)
 }
 func (c *Config) RunAsScript() bool {
 	return c.runAs == Script
@@ -229,4 +231,7 @@ func (c *Config) ContentType() ContentType {
 }
 func (c *Config) OutputFileName() string {
 	return c.outputFileName
+}
+func (c *Config) WithResources() bool {
+	return c.withResources
 }

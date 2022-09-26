@@ -49,6 +49,7 @@ func (d Deployment) ApplicationConfigs() []ApplicationConfig {
 	for i := 0; i < len(d.Delegate.Spec.Template.Spec.Containers); i++ {
 		c := d.Delegate.Spec.Template.Spec.Containers[i]
 		apps = append(apps, ApplicationConfig{ApplicationName: c.Name, ImageName: c.Image})
+		apps = append(apps, ApplicationConfig{ApplicationName: c.Name, ImageName: c.Image, Resources: c.Resources})
 	}
 	return apps
 }

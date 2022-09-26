@@ -7,6 +7,7 @@ import (
 
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/dmartinol/application-exporter/pkg/model"
+	v1 "k8s.io/api/core/v1"
 )
 
 type ByNamespaceName []model.NamespaceModel
@@ -44,7 +45,31 @@ func (f Formatter) sortedNamespaces(topologyModel *model.TopologyModel) []model.
 
 func appendNewLine(sb *strings.Builder, format string, args ...any) {
 	sb.WriteString(fmt.Sprintf(format+"\n", args...))
-	// TODO \n
+}
+
+func cpuLimits(resources v1.ResourceRequirements) string {
+	if val, ok := resources.Limits[v1.ResourceCPU]; ok {
+		return val.String()
+	}
+	return "NA"
+}
+func memoryLimits(resources v1.ResourceRequirements) string {
+	if val, ok := resources.Limits[v1.ResourceMemory]; ok {
+		return val.String()
+	}
+	return "NA"
+}
+func cpuRequests(resources v1.ResourceRequirements) string {
+	if val, ok := resources.Requests[v1.ResourceCPU]; ok {
+		return val.String()
+	}
+	return "NA"
+}
+func memoryRequests(resources v1.ResourceRequirements) string {
+	if val, ok := resources.Requests[v1.ResourceMemory]; ok {
+		return val.String()
+	}
+	return "NA"
 }
 
 func (f Formatter) text(topologyModel *model.TopologyModel) *strings.Builder {
@@ -52,17 +77,22 @@ func (f Formatter) text(topologyModel *model.TopologyModel) *strings.Builder {
 
 	for _, namespace := range f.sortedNamespaces(topologyModel) {
 		for _, applicationProvider := range namespace.AllApplicationProviders() {
-			appendNewLine(sb, "===============\nNamespace: %s\nApplication: %s", namespace.Name(), applicationProvider.(model.Resource).Name())
+			appendNewLine(sb, "===============\nNamespace: %s\nApplication: %s (%s)", namespace.Name(), applicationProvider.(model.Resource).Name(), applicationProvider.(model.Resource).Kind())
 			for _, applicationConfig := range applicationProvider.ApplicationConfigs() {
+				appendNewLine(sb, "Container name: %s\n", applicationConfig.ApplicationName)
 				applicationImage, ok := topologyModel.ImageByName(applicationConfig.ImageName)
 				if ok {
-					appendNewLine(sb, "Image name: %s\n", applicationImage.ImageName())
-					appendNewLine(sb, "Image version: %s\n", applicationImage.ImageVersion())
-					appendNewLine(sb, "Image full name: %s\n", applicationImage.ImageFullName())
+					appendNewLine(sb, "Image name: %s", applicationImage.ImageName())
+					appendNewLine(sb, "Image version: %s", applicationImage.ImageVersion())
+					appendNewLine(sb, "Image full name: %s", applicationImage.ImageFullName())
 				} else {
-					appendNewLine(sb, "Image name: %s\n", "NA")
-					appendNewLine(sb, "Image version: %s\n", "NA")
-					appendNewLine(sb, "Image full name: %s\n", applicationConfig.ImageName)
+					appendNewLine(sb, "Image name: %s", "NA")
+					appendNewLine(sb, "Image version: %s", "NA")
+					appendNewLine(sb, "Image full name: %s", applicationConfig.ImageName)
+				}
+				if f.config.WithResources() {
+					res := applicationConfig.Resources
+					appendNewLine(sb, "Limits: %s CPU, %s memory\nRequests: %s CPU, %s memory", cpuLimits(res), memoryLimits(res), cpuRequests(res), memoryRequests(res))
 				}
 			}
 		}
@@ -72,19 +102,27 @@ func (f Formatter) text(topologyModel *model.TopologyModel) *strings.Builder {
 
 func (f Formatter) csv(topologyModel *model.TopologyModel) *strings.Builder {
 	var sb = &strings.Builder{}
-	appendNewLine(sb, "namespace, application, imageName, imageVersion, fullImageName")
+	if f.config.WithResources() {
+		appendNewLine(sb, "namespace, application, container, imageName, imageVersion, fullImageName, CPU limits, memory limits, CPU requests, memory requests")
+	} else {
+		appendNewLine(sb, "namespace, application, container, imageName, imageVersion, fullImageName")
+	}
 
 	for _, namespace := range f.sortedNamespaces(topologyModel) {
 		for _, applicationProvider := range namespace.AllApplicationProviders() {
 			logger.Debugf("## %s %s", applicationProvider.(model.Resource).Kind(), applicationProvider.(model.Resource).Name())
 			for _, applicationConfig := range applicationProvider.ApplicationConfigs() {
 				var record []string
-				record = append(record, namespace.Name(), applicationConfig.ApplicationName)
+				record = append(record, namespace.Name(), applicationProvider.(model.Resource).Name(), applicationConfig.ApplicationName)
 				applicationImage, ok := topologyModel.ImageByName(applicationConfig.ImageName)
 				if ok {
 					record = append(record, applicationImage.ImageName(), applicationImage.ImageVersion(), applicationImage.ImageFullName())
 				} else {
 					record = append(record, applicationConfig.ImageName, "NA", applicationConfig.ImageName)
+				}
+				if f.config.WithResources() {
+					res := applicationConfig.Resources
+					record = append(record, cpuLimits(res), memoryLimits(res), cpuRequests(res), memoryRequests(res))
 				}
 				appendNewLine(sb, "%s", strings.Join(record, ","))
 			}

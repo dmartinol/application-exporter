@@ -1,10 +1,15 @@
 package model
 
-import "strings"
+import (
+	"strings"
+
+	v1 "k8s.io/api/core/v1"
+)
 
 type ApplicationConfig struct {
 	ApplicationName string
 	ImageName       string
+	Resources       v1.ResourceRequirements
 }
 
 func (a ApplicationConfig) IsImageStream() bool {
