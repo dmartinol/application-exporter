@@ -3,7 +3,7 @@ Go application to export the configuration of applications deployed in OpenShift
 * Filter namespaces by configurable label(s)
 * For each application (e.g., any `Deplopyment`, `DeploymentConfig` and `StatefulSet` in the matching namespaces), collect the image name and version and the resource configuration and usage (optional)
 * Export configuration in configurable format (text or CSV)
-* Run as a script or a REST service
+* Run as a script or a REST service (`POST` to `/inventory` endpoint)
 * Run as a standalone executable or in OpenShift containerized environment (REST service only)
 
 Sample output in CSV format without the resource configuration and usage data:
@@ -83,8 +83,8 @@ go run main.go --help
 
 The following are examples of requests performed using `curl`:
 ```bash
-curl "http://localhost:8080/inventory"
-curl "http://localhost:8080/inventory?content-type=CSV&ns-selector=mylabel=myvalue"
+curl -X POST "http://localhost:8080/inventory"
+curl -X POST "http://localhost:8080/inventory?content-type=CSV&ns-selector=mylabel=myvalue"
 ```
 
 ### Running the binary executable
