@@ -35,17 +35,17 @@ objects:
               valueFrom:
                 configMapKeyRef:
                   key: SERVER_PORT
-                  name: exporter-config
+                  name: exporter-config-knative
             - name: LOG_LEVEL
               valueFrom:
                 configMapKeyRef:
                   key: LOG_LEVEL
-                  name: exporter-config
+                  name: exporter-config-knative
             - name: NS_SELECTOR
               valueFrom:
                 configMapKeyRef:
                   key: NS_SELECTOR
-                  name: exporter-config
+                  name: exporter-config-knative
 parameters:
 - description: App namespace
   from: '[A-Z0-9]{8}'
