@@ -10,6 +10,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
+	batchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
@@ -22,6 +23,7 @@ type ModelBuilder struct {
 	appsClient    *appsv1.AppsV1Client
 	imagesClient  *imagesv1.ImageV1Client
 	appsV1Client  *k8appsv1client.AppsV1Client
+	batchClient   *batchv1.BatchV1Client
 	coreClient    *corev1client.CoreV1Client
 	metricsClient *metrics.Clientset
 
@@ -47,6 +49,10 @@ func (builder *ModelBuilder) BuildForKubeConfig(config *rest.Config) (*model.Top
 		return nil, err
 	}
 	builder.appsV1Client, err = k8appsv1client.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	builder.batchClient, err = batchv1.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -122,6 +128,30 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	for _, deploymentConfig := range deploymentConfigs.Items {
 		logger.Debugf("Found %s/%s", deploymentConfig.Kind, deploymentConfig.Name)
 		resource := &model.DeploymentConfig{Delegate: deploymentConfig}
+		builder.namespaceModel.AddResource(resource)
+		builder.buildApplications(namespace, resource)
+	}
+
+	logger.Debug("=== CronJobs ===")
+	cronJobs, err := builder.batchClient.CronJobs(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, cronJob := range cronJobs.Items {
+		logger.Debugf("Found %s/%s", cronJob.Kind, cronJob.Name)
+		resource := &model.CronJob{Delegate: cronJob}
+		builder.namespaceModel.AddResource(resource)
+		builder.buildApplications(namespace, resource)
+	}
+
+	logger.Debug("=== DaemonSets ===")
+	demonSets, err := builder.appsV1Client.DaemonSets(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, demonSet := range demonSets.Items {
+		logger.Debugf("Found %s/%s", demonSet.Kind, demonSet.Name)
+		resource := &model.DaemonSet{Delegate: demonSet}
 		builder.namespaceModel.AddResource(resource)
 		builder.buildApplications(namespace, resource)
 	}

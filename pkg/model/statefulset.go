@@ -39,8 +39,7 @@ func (s StatefulSet) IsOwnerOf(owner metav1.OwnerReference) bool {
 
 func (s StatefulSet) ApplicationConfigs() []ApplicationConfig {
 	var apps []ApplicationConfig
-	for i := 0; i < len(s.Delegate.Spec.Template.Spec.Containers); i++ {
-		c := s.Delegate.Spec.Template.Spec.Containers[i]
+	for _, c := range s.Delegate.Spec.Template.Spec.Containers {
 		apps = append(apps, ApplicationConfig{ContainerName: c.Name, ImageName: c.Image, Resources: c.Resources})
 	}
 	return apps

@@ -46,8 +46,7 @@ func (d Deployment) IsOwnerOf(owner metav1.OwnerReference) bool {
 
 func (d Deployment) ApplicationConfigs() []ApplicationConfig {
 	var apps []ApplicationConfig
-	for i := 0; i < len(d.Delegate.Spec.Template.Spec.Containers); i++ {
-		c := d.Delegate.Spec.Template.Spec.Containers[i]
+	for _, c := range d.Delegate.Spec.Template.Spec.Containers {
 		apps = append(apps, ApplicationConfig{ContainerName: c.Name, ImageName: c.Image, Resources: c.Resources})
 	}
 	return apps
