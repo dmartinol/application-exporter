@@ -41,7 +41,7 @@ func (s StatefulSet) ApplicationConfigs() []ApplicationConfig {
 	var apps []ApplicationConfig
 	for i := 0; i < len(s.Delegate.Spec.Template.Spec.Containers); i++ {
 		c := s.Delegate.Spec.Template.Spec.Containers[i]
-		apps = append(apps, ApplicationConfig{ApplicationName: c.Name, ImageName: c.Image})
+		apps = append(apps, ApplicationConfig{ContainerName: c.Name, ImageName: c.Image, Resources: c.Resources})
 	}
 	return apps
 }

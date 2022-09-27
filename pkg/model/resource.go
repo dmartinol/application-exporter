@@ -15,3 +15,7 @@ type Resource interface {
 	OwnerReferences() []metav1.OwnerReference
 	IsOwnerOf(owner metav1.OwnerReference) bool
 }
+
+type ApplicationProvider interface {
+	ApplicationConfigs() []ApplicationConfig
+}
