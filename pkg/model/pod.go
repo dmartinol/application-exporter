@@ -78,7 +78,7 @@ func (p Pod) UsageForContainer(containerName string) k8sCoreV1.ResourceList {
 			for _, c := range p.PodMetrics.Containers {
 				if c.Name == containerName {
 					return c.Usage
-				} else {
+				} else if c.Name != "POD" {
 					logger.Infof("No match %s, %s, %s", p.Name(), containerName, c.Name)
 				}
 			}
