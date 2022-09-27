@@ -65,3 +65,14 @@ func (namespace NamespaceModel) AllResources() []Resource {
 	}
 	return resources
 }
+func (namespace NamespaceModel) AllPodsOf(parent Resource) []Pod {
+	var children []Pod
+	for _, pod := range namespace.ResourcesByKind("Pod") {
+		for _, ref := range pod.OwnerReferences() {
+			if parent.IsOwnerOf(ref) {
+				children = append(children, pod.(Pod))
+			}
+		}
+	}
+	return children
+}

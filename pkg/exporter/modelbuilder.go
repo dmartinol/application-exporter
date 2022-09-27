@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
 	"k8s.io/client-go/rest"
 )
@@ -18,10 +19,11 @@ import (
 type ModelBuilder struct {
 	config *Config
 
-	appsClient   *appsv1.AppsV1Client
-	imagesClient *imagesv1.ImageV1Client
-	appsV1Client *k8appsv1client.AppsV1Client
-	coreClient   *corev1client.CoreV1Client
+	appsClient    *appsv1.AppsV1Client
+	imagesClient  *imagesv1.ImageV1Client
+	appsV1Client  *k8appsv1client.AppsV1Client
+	coreClient    *corev1client.CoreV1Client
+	metricsClient *metrics.Clientset
 
 	topologyModel  *model.TopologyModel
 	namespaceModel *model.NamespaceModel
@@ -49,6 +51,10 @@ func (builder *ModelBuilder) BuildForKubeConfig(config *rest.Config) (*model.Top
 		return nil, err
 	}
 	builder.coreClient, err = corev1client.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	builder.metricsClient, err = metrics.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +134,14 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	for _, pod := range pods.Items {
 		logger.Debugf("Found %s/%s with SA %s", pod.Kind, pod.Name, pod.Spec.ServiceAccountName)
 		resource := model.Pod{Delegate: pod}
+		if builder.config.WithResources() && resource.IsRunning() {
+			podMetrics, err := builder.metricsClient.MetricsV1beta1().PodMetricses(namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+			if err != nil {
+				logger.Warnf("No metrics for Pod %s: %s", pod.Name, err)
+			} else {
+				resource.SetMetrics(podMetrics)
+			}
+		}
 		builder.namespaceModel.AddResource(resource)
 	}
 

@@ -7,9 +7,10 @@ import (
 )
 
 type ApplicationConfig struct {
-	ApplicationName string
-	ImageName       string
-	Resources       v1.ResourceRequirements
+	ContainerName  string
+	ImageName      string
+	Resources      v1.ResourceRequirements
+	ResourcesUsage v1.ResourceList
 }
 
 func (a ApplicationConfig) IsImageStream() bool {

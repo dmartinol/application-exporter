@@ -7,9 +7,10 @@ require (
 	github.com/openshift/api v0.0.0-20200323095748-e7041f8762a3
 	github.com/openshift/client-go v0.0.0-20200320150128-a906f3d8e723
 	go.uber.org/zap v1.23.0
-	k8s.io/api v0.25.1
-	k8s.io/apimachinery v0.25.1
-	k8s.io/client-go v0.25.1
+	k8s.io/api v0.25.2
+	k8s.io/apimachinery v0.25.2
+	k8s.io/client-go v0.25.2
+	k8s.io/metrics v0.25.2
 )
 
 require (

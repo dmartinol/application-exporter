@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	logger "github.com/dmartinol/application-exporter/pkg/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
 )
 
 const (
@@ -15,7 +17,8 @@ const (
 )
 
 type Pod struct {
-	Delegate v1.Pod
+	Delegate   v1.Pod
+	PodMetrics *v1beta1.PodMetrics
 }
 
 func (d Pod) Kind() string {
@@ -42,9 +45,9 @@ func (p Pod) IsOwnerOf(owner metav1.OwnerReference) bool {
 
 func (p Pod) StatusColor() (string, bool) {
 	switch p.Delegate.Status.Phase {
-	case "Succeeded":
+	case v1.PodSucceeded:
 		return CompletedColor, true
-	case "Running":
+	case v1.PodRunning:
 		if p.isReady() {
 			return RunningColor, true
 		}
@@ -59,4 +62,27 @@ func (p Pod) isReady() bool {
 		}
 	}
 	return false
+}
+func (p Pod) IsRunning() bool {
+	return p.Delegate.Status.Phase == v1.PodRunning
+}
+
+func (p *Pod) SetMetrics(podMetrics *v1beta1.PodMetrics) {
+	p.PodMetrics = podMetrics
+}
+
+func (p Pod) UsageForContainer(containerName string) v1.ResourceList {
+	if p.IsRunning() {
+		podMetrics := p.PodMetrics
+		if podMetrics != nil {
+			for _, c := range p.PodMetrics.Containers {
+				if c.Name == containerName {
+					return c.Usage
+				} else {
+					logger.Infof("No match %s, %s, %s", p.Name(), containerName, c.Name)
+				}
+			}
+		}
+	}
+	return nil
 }
