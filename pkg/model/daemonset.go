@@ -25,12 +25,6 @@ func (d DaemonSet) Label() string {
 	return d.Delegate.Name
 }
 
-func (d DaemonSet) Icon() string {
-	return "images/deployment.png"
-}
-func (d DaemonSet) StatusColor() (string, bool) {
-	return "", false
-}
 func (d DaemonSet) OwnerReferences() []k8sMetaV1.OwnerReference {
 	return d.Delegate.OwnerReferences
 }
