@@ -159,7 +159,7 @@ func (c *Config) initFromFlags() {
 	flag.StringVar(&c.namespaceSelector, "ns-selector", "", "Namespace selector, like label1=value1,label2=value2")
 	contentType := flag.String("content-type", "text", "Content type, one of text, CSV")
 	outputFileName := flag.String("output", "", "Output file name, default is output.<content-type>. File suffix is automatically added")
-	flag.BoolVar(&c.withResources, "with-resources", false, "Include resource configuration")
+	flag.BoolVar(&c.withResources, "with-resources", false, "Include resource configuration and usage")
 	flag.Parse()
 
 	if *asService {

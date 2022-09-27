@@ -51,6 +51,10 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 	if outputFileName != "" {
 		newConfig.outputFileName = outputFileName
 	}
+	withResources := req.FormValue("with-resources")
+	if withResources != "" {
+		newConfig.withResources = true
+	}
 
 	if req.URL.Path == "/inventory" {
 		if req.Method == "GET" {
