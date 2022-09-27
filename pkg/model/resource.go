@@ -1,7 +1,7 @@
 package model
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sMetaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Resource interface {
@@ -12,8 +12,8 @@ type Resource interface {
 	Icon() string
 	StatusColor() (string, bool)
 
-	OwnerReferences() []metav1.OwnerReference
-	IsOwnerOf(owner metav1.OwnerReference) bool
+	OwnerReferences() []k8sMetaV1.OwnerReference
+	IsOwnerOf(owner k8sMetaV1.OwnerReference) bool
 }
 
 type ApplicationProvider interface {

@@ -5,13 +5,14 @@ import (
 
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	model "github.com/dmartinol/application-exporter/pkg/model"
-	appsv1 "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
-	imagesv1 "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
-	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	clientAppsV1 "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
+	clientImagesV1 "github.com/openshift/client-go/image/clientset/versioned/typed/image/v1"
+	k8sCoreV1 "k8s.io/api/core/v1"
+	k8sMetaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sClientAppsV1 "k8s.io/client-go/kubernetes/typed/apps/v1"
+	k8sClientBatchV1 "k8s.io/client-go/kubernetes/typed/batch/v1"
+	k8sClientCoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	k8sClientMetrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
 	"k8s.io/client-go/rest"
 )
@@ -19,11 +20,12 @@ import (
 type ModelBuilder struct {
 	config *Config
 
-	appsClient    *appsv1.AppsV1Client
-	imagesClient  *imagesv1.ImageV1Client
-	appsV1Client  *k8appsv1client.AppsV1Client
-	coreClient    *corev1client.CoreV1Client
-	metricsClient *metrics.Clientset
+	clientAppsV1       *clientAppsV1.AppsV1Client
+	clientImagesV1     *clientImagesV1.ImageV1Client
+	k8sAppsClientV1    *k8sClientAppsV1.AppsV1Client
+	k8sBatchClientV1   *k8sClientBatchV1.BatchV1Client
+	k8sCoreClientV1    *k8sClientCoreV1.CoreV1Client
+	k8sMetricsClientV1 *k8sClientMetrics.Clientset
 
 	topologyModel  *model.TopologyModel
 	namespaceModel *model.NamespaceModel
@@ -38,23 +40,27 @@ func NewModelBuilder(config *Config) *ModelBuilder {
 func (builder *ModelBuilder) BuildForKubeConfig(config *rest.Config) (*model.TopologyModel, error) {
 	var err error
 
-	builder.appsClient, err = appsv1.NewForConfig(config)
+	builder.clientAppsV1, err = clientAppsV1.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	builder.imagesClient, err = imagesv1.NewForConfig(config)
+	builder.clientImagesV1, err = clientImagesV1.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	builder.appsV1Client, err = k8appsv1client.NewForConfig(config)
+	builder.k8sAppsClientV1, err = k8sClientAppsV1.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	builder.coreClient, err = corev1client.NewForConfig(config)
+	builder.k8sBatchClientV1, err = k8sClientBatchV1.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	builder.metricsClient, err = metrics.NewForConfig(config)
+	builder.k8sCoreClientV1, err = k8sClientCoreV1.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	builder.k8sMetricsClientV1, err = k8sClientMetrics.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -68,11 +74,11 @@ func (builder *ModelBuilder) BuildForKubeConfig(config *rest.Config) (*model.Top
 }
 
 func (builder *ModelBuilder) buildCluster() error {
-	var namespaces *v1.NamespaceList
+	var namespaces *k8sCoreV1.NamespaceList
 	var err error
 	nsSelector := builder.config.NamespaceSelector()
 	logger.Infof("Filtering by %s", nsSelector)
-	namespaces, err = builder.coreClient.Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: nsSelector})
+	namespaces, err = builder.k8sCoreClientV1.Namespaces().List(context.TODO(), k8sMetaV1.ListOptions{LabelSelector: nsSelector})
 	if err != nil {
 		logger.Warnf("Cannot list namespaces by selector %s: %s", nsSelector, err)
 		return err
@@ -91,7 +97,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 
 	logger.Infof("Running on NS %s", namespace)
 	logger.Debug("=== Deployments ===")
-	deployments, err := builder.appsV1Client.Deployments(namespace).List(context.TODO(), metav1.ListOptions{})
+	deployments, err := builder.k8sAppsClientV1.Deployments(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -103,7 +109,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	}
 
 	logger.Debug("=== StatefulSets ===")
-	statefulSets, err := builder.appsV1Client.StatefulSets(namespace).List(context.TODO(), metav1.ListOptions{})
+	statefulSets, err := builder.k8sAppsClientV1.StatefulSets(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -115,7 +121,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 	}
 
 	logger.Debug("=== DeploymentConfigs ===")
-	deploymentConfigs, err := builder.appsClient.DeploymentConfigs(namespace).List(context.TODO(), metav1.ListOptions{})
+	deploymentConfigs, err := builder.clientAppsV1.DeploymentConfigs(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -126,8 +132,32 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 		builder.buildApplications(namespace, resource)
 	}
 
+	logger.Debug("=== CronJobs ===")
+	cronJobs, err := builder.k8sBatchClientV1.CronJobs(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, cronJob := range cronJobs.Items {
+		logger.Debugf("Found %s/%s", cronJob.Kind, cronJob.Name)
+		resource := &model.CronJob{Delegate: cronJob}
+		builder.namespaceModel.AddResource(resource)
+		builder.buildApplications(namespace, resource)
+	}
+
+	logger.Debug("=== DaemonSets ===")
+	demonSets, err := builder.k8sAppsClientV1.DaemonSets(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, demonSet := range demonSets.Items {
+		logger.Debugf("Found %s/%s", demonSet.Kind, demonSet.Name)
+		resource := &model.DaemonSet{Delegate: demonSet}
+		builder.namespaceModel.AddResource(resource)
+		builder.buildApplications(namespace, resource)
+	}
+
 	logger.Debug("=== Pods ===")
-	pods, err := builder.coreClient.Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	pods, err := builder.k8sCoreClientV1.Pods(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -135,7 +165,7 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 		logger.Debugf("Found %s/%s with SA %s", pod.Kind, pod.Name, pod.Spec.ServiceAccountName)
 		resource := model.Pod{Delegate: pod}
 		if builder.config.WithResources() && resource.IsRunning() {
-			podMetrics, err := builder.metricsClient.MetricsV1beta1().PodMetricses(namespace).Get(context.TODO(), pod.Name, metav1.GetOptions{})
+			podMetrics, err := builder.k8sMetricsClientV1.MetricsV1beta1().PodMetricses(namespace).Get(context.TODO(), pod.Name, k8sMetaV1.GetOptions{})
 			if err != nil {
 				logger.Warnf("No metrics for Pod %s: %s", pod.Name, err)
 			} else {
@@ -152,7 +182,7 @@ func (builder *ModelBuilder) buildApplications(namespace string, applicationProv
 	for _, appConfig := range applicationProvider.ApplicationConfigs() {
 		logger.Debugf("Loading application %s", appConfig)
 		if appConfig.IsImageStream() {
-			imageStream, err := builder.imagesClient.ImageStreamImages(namespace).Get(context.TODO(), appConfig.ImageStreamId(), metav1.GetOptions{})
+			imageStream, err := builder.clientImagesV1.ImageStreamImages(namespace).Get(context.TODO(), appConfig.ImageStreamId(), k8sMetaV1.GetOptions{})
 			if err != nil {
 				logger.Warnf("Cannot load image for %s: %s", appConfig.ImageName, err)
 			} else {

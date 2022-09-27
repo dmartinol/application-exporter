@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	logger "github.com/dmartinol/application-exporter/pkg/log"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sMetaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type NamespaceModel struct {
@@ -35,7 +35,7 @@ func (namespace NamespaceModel) AddResource(resource Resource) bool {
 	logger.Debugf("Skipped existing resource %s of kind %s", resource.Name(), resource.Kind())
 	return false
 }
-func (namespace NamespaceModel) LookupOwner(owner metav1.OwnerReference) Resource {
+func (namespace NamespaceModel) LookupOwner(owner k8sMetaV1.OwnerReference) Resource {
 	for _, resources := range namespace.resourcesByKind {
 		for _, resource := range resources {
 			if resource.IsOwnerOf(owner) {

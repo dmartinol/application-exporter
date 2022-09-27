@@ -7,7 +7,7 @@ import (
 
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/dmartinol/application-exporter/pkg/model"
-	v1 "k8s.io/api/core/v1"
+	k8sCoreV1 "k8s.io/api/core/v1"
 )
 
 type ByNamespaceName []model.NamespaceModel
@@ -47,35 +47,35 @@ func appendNewLine(sb *strings.Builder, format string, args ...any) {
 	sb.WriteString(fmt.Sprintf(format+"\n", args...))
 }
 
-func cpuLimits(resources v1.ResourceRequirements) string {
-	if val, ok := resources.Limits[v1.ResourceCPU]; ok {
+func cpuLimits(resources k8sCoreV1.ResourceRequirements) string {
+	if val, ok := resources.Limits[k8sCoreV1.ResourceCPU]; ok {
 		return val.String()
 	}
 	return "NA"
 }
-func memoryLimits(resources v1.ResourceRequirements) string {
-	if val, ok := resources.Limits[v1.ResourceMemory]; ok {
+func memoryLimits(resources k8sCoreV1.ResourceRequirements) string {
+	if val, ok := resources.Limits[k8sCoreV1.ResourceMemory]; ok {
 		return val.String()
 	}
 	return "NA"
 }
-func cpuRequests(resources v1.ResourceRequirements) string {
-	if val, ok := resources.Requests[v1.ResourceCPU]; ok {
+func cpuRequests(resources k8sCoreV1.ResourceRequirements) string {
+	if val, ok := resources.Requests[k8sCoreV1.ResourceCPU]; ok {
 		return val.String()
 	}
 	return "NA"
 }
-func memoryRequests(resources v1.ResourceRequirements) string {
-	if val, ok := resources.Requests[v1.ResourceMemory]; ok {
+func memoryRequests(resources k8sCoreV1.ResourceRequirements) string {
+	if val, ok := resources.Requests[k8sCoreV1.ResourceMemory]; ok {
 		return val.String()
 	}
 	return "NA"
 }
 
-func cpuUsage(usage v1.ResourceList) string {
+func cpuUsage(usage k8sCoreV1.ResourceList) string {
 	return usage.Cpu().String()
 }
-func memoryUsage(usage v1.ResourceList) string {
+func memoryUsage(usage k8sCoreV1.ResourceList) string {
 	return usage.Memory().String()
 }
 
