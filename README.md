@@ -1,10 +1,23 @@
 # application-exporter
 Go application to export the configuration of applications deployed in OpenShift.
 * Filter namespaces by configurable label(s)
-* Retrieve image name and version for each `Deplopyment`, `DeploymentConfig` and `StatefulSet` found in the mathing namespaces
+* For each application (e.g., any `Deplopyment`, `DeploymentConfig` and `StatefulSet` in the matching namespaces), collect the image name and version and the resource configuration and usage (optional)
 * Export configuration in configurable format (text or CSV)
 * Run as a script or a REST service
 * Run as a standalone executable or in OpenShift containerized environment (REST service only)
+
+Sample output in CSV format without the resource configuration and usage data:
+
+|namespace | application | container | imageName | imageVersion | fullImageName|
+|---|---|---|---|---|---|
+|rhpam | rhpam-authoring-rhpamcentr | rhpam-authoring-rhpamcentr | rhpam-businesscentral-rhel8 | 7.9.1 | image-registry.openshift-image-registry.svc:5000/rhpam/rhpam-businesscentral-rhel8@sha256:38172680f719cd8eeff1fdf4f2732e7cfdea5109d381ef9108e1c88b74390bc5|
+|rhpam | rhpam-server | rhpam-server | rhpam-server | 7.9.1 | image-registry.openshift-image-registry.svc:5000/rhpam/rhpam-server@sha256:7f2df7e673e1e9def8575026ef4697341227a9d5860bcb6d3101d80a0701dd3e|
+
+Sample output in CSV format including the resource configuration and usage data:
+|namespace | application |  container |  imageName |  imageVersion |  fullImageName |  CPU limits |  memory limits |  CPU requests |  memory requests |  pod |  CPU usage |  memory usage|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|rhpam | rhpam-authoring-rhpamcentr | rhpam-authoring-rhpamcentr | rhpam-businesscentral-rhel8 | 7.9.1 | image-registry.openshift-image-registry.svc:5000/rhpam/rhpam-businesscentral-rhel8@sha256:38172680f719cd8eeff1fdf4f2732e7cfdea5109d381ef9108e1c88b74390bc5 | 2 | 4Gi | 1500m | 3Gi | rhpam-authoring-rhpamcentr-1-jqq2l | 5m | 1493208Ki|
+|rhpam | rhpam-server | rhpam-server | rhpam-server | 7.9.1 | image-registry.openshift-image-registry.svc:5000/rhpam/rhpam-server@sha256:7f2df7e673e1e9def8575026ef4697341227a9d5860bcb6d3101d80a0701dd3e | 1 | 2Gi | 750m | 1536Mi | rhpam-server-22-4lhwt | 2m | 1058236Ki|
 
 ## CI pipeline
 A GitHub action runs at every new release, and generates the following artifacts:
@@ -32,6 +45,8 @@ Usage of ./application-exporter:
         Output file name, default is output.<content-type>. File suffix is automatically added
   -server-port int
         Server port (only for REST service mode) (default 8080)
+  -with-resources
+        Include resource configuration and usage
 ```
 
 ### Environment variables
@@ -42,6 +57,13 @@ The following environment variables can override the command arguments:
 * `NS_SELECTOR`: overrides `-ns-selector` command line argument
 * `CONTENT_TYPE`: overrides `-content-type` command line argument
 * `SERVER_PORT`: overrides `-server-port` command line argument
+
+### REST query 
+The following query parameters can override the command arguments and environment variables:
+* `content-type`: overrides `-content-type` command line argument and `CONTENT_TYPE` environment variable
+* `ns-selector`: overrides `-ns-selector` command line argument and `NS_SELECTOR` environment variable
+* `output`: overrides `-output` command line argument
+* `with-resources`: any value, overrides `-with-resources` command line argument
 
 ## Running as standalone executable
 ### Running with `go run`
