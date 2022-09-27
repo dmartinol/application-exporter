@@ -29,7 +29,11 @@ func (s *ExporterService) Run() {
 	router.Path("/inventory").Queries("content-type", "{content-type}").Queries("ns-selector", "{ns-selector}").Queries("output", "{output}").Queries("with-resources", "{with-resources}").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
 	router.Path("/inventory").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
 
-	url := fmt.Sprintf("0.0.0.0:%d", s.config.ServerPort())
+	host := "localhost"
+	if s.config.RunInContainer() {
+		host = "0.0.0.0"
+	}
+	url := fmt.Sprintf("%s:%d", host, s.config.ServerPort())
 	logger.Infof("Starting listener as %s", url)
 	if err := http.ListenAndServe(url, router); err != nil {
 		logger.Fatal(err)
@@ -57,10 +61,10 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 	}
 
 	if req.URL.Path == "/inventory" {
-		if req.Method == "GET" {
+		if req.Method == "POST" {
 			s.inventory(&newConfig, rw)
 		} else {
-			http.Error(rw, fmt.Sprintf("Expect method GET at /, got %v", req.Method), http.StatusMethodNotAllowed)
+			http.Error(rw, fmt.Sprintf("Expect method POST at /, got %v", req.Method), http.StatusMethodNotAllowed)
 		}
 	} else {
 		http.Error(rw, fmt.Sprintf("Unmanaged path %s", req.URL.Path), http.StatusNotFound)
