@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	appsv1T "github.com/openshift/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	appsV1 "github.com/openshift/api/apps/v1"
+	k8sMetaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type DeploymentConfig struct {
-	Delegate appsv1T.DeploymentConfig
+	Delegate appsV1.DeploymentConfig
 }
 
 func (d DeploymentConfig) Kind() string {
@@ -30,10 +30,10 @@ func (d DeploymentConfig) Icon() string {
 func (d DeploymentConfig) StatusColor() (string, bool) {
 	return "", false
 }
-func (d DeploymentConfig) OwnerReferences() []metav1.OwnerReference {
+func (d DeploymentConfig) OwnerReferences() []k8sMetaV1.OwnerReference {
 	return d.Delegate.OwnerReferences
 }
-func (d DeploymentConfig) IsOwnerOf(owner metav1.OwnerReference) bool {
+func (d DeploymentConfig) IsOwnerOf(owner k8sMetaV1.OwnerReference) bool {
 	switch owner.Kind {
 	case "DeploymentConfig":
 		return strings.Compare(owner.Name, d.Name()) == 0

@@ -6,7 +6,7 @@ import (
 
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/openshift/api/image/docker10"
-	images "github.com/openshift/api/image/v1"
+	imageV1 "github.com/openshift/api/image/v1"
 )
 
 type ApplicationImage interface {
@@ -43,10 +43,10 @@ func (i *Image) ImageVersion() string {
 
 type ImageByStream struct {
 	FullName string
-	Delegate images.Image
+	Delegate imageV1.Image
 }
 
-func NewImageByStream(imageFullName string, delegate images.Image) *ImageByStream {
+func NewImageByStream(imageFullName string, delegate imageV1.Image) *ImageByStream {
 	imageByStream := &ImageByStream{Delegate: delegate}
 	imageByStream.FullName = imageFullName
 	return imageByStream

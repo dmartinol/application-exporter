@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	v1 "k8s.io/api/batch/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sBatchV1 "k8s.io/api/batch/v1"
+	k8sMetaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type CronJob struct {
-	Delegate v1.CronJob
+	Delegate k8sBatchV1.CronJob
 }
 
 func (c CronJob) Kind() string {
@@ -31,10 +31,10 @@ func (c CronJob) Icon() string {
 func (c CronJob) StatusColor() (string, bool) {
 	return "", false
 }
-func (c CronJob) OwnerReferences() []metav1.OwnerReference {
+func (c CronJob) OwnerReferences() []k8sMetaV1.OwnerReference {
 	return c.Delegate.OwnerReferences
 }
-func (c CronJob) IsOwnerOf(owner metav1.OwnerReference) bool {
+func (c CronJob) IsOwnerOf(owner k8sMetaV1.OwnerReference) bool {
 	switch owner.Kind {
 	case "Job":
 		return strings.HasPrefix(owner.Name, c.Name())

@@ -3,14 +3,14 @@ package model
 import (
 	"strings"
 
-	v1 "k8s.io/api/core/v1"
+	k8sCoreV1 "k8s.io/api/core/v1"
 )
 
 type ApplicationConfig struct {
 	ContainerName  string
 	ImageName      string
-	Resources      v1.ResourceRequirements
-	ResourcesUsage v1.ResourceList
+	Resources      k8sCoreV1.ResourceRequirements
+	ResourcesUsage k8sCoreV1.ResourceList
 }
 
 func (a ApplicationConfig) IsImageStream() bool {

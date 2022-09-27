@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	logger "github.com/dmartinol/application-exporter/pkg/log"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
+	k8sCoreV1 "k8s.io/api/core/v1"
+	k8sMetaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sMetricsV1Beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 )
 
 const (
@@ -17,8 +17,8 @@ const (
 )
 
 type Pod struct {
-	Delegate   v1.Pod
-	PodMetrics *v1beta1.PodMetrics
+	Delegate   k8sCoreV1.Pod
+	PodMetrics *k8sMetricsV1Beta1.PodMetrics
 }
 
 func (d Pod) Kind() string {
@@ -36,18 +36,18 @@ func (p Pod) Label() string {
 func (p Pod) Icon() string {
 	return "images/pod.png"
 }
-func (p Pod) OwnerReferences() []metav1.OwnerReference {
+func (p Pod) OwnerReferences() []k8sMetaV1.OwnerReference {
 	return p.Delegate.OwnerReferences
 }
-func (p Pod) IsOwnerOf(owner metav1.OwnerReference) bool {
+func (p Pod) IsOwnerOf(owner k8sMetaV1.OwnerReference) bool {
 	return false
 }
 
 func (p Pod) StatusColor() (string, bool) {
 	switch p.Delegate.Status.Phase {
-	case v1.PodSucceeded:
+	case k8sCoreV1.PodSucceeded:
 		return CompletedColor, true
-	case v1.PodRunning:
+	case k8sCoreV1.PodRunning:
 		if p.isReady() {
 			return RunningColor, true
 		}
@@ -64,14 +64,14 @@ func (p Pod) isReady() bool {
 	return false
 }
 func (p Pod) IsRunning() bool {
-	return p.Delegate.Status.Phase == v1.PodRunning
+	return p.Delegate.Status.Phase == k8sCoreV1.PodRunning
 }
 
-func (p *Pod) SetMetrics(podMetrics *v1beta1.PodMetrics) {
+func (p *Pod) SetMetrics(podMetrics *k8sMetricsV1Beta1.PodMetrics) {
 	p.PodMetrics = podMetrics
 }
 
-func (p Pod) UsageForContainer(containerName string) v1.ResourceList {
+func (p Pod) UsageForContainer(containerName string) k8sCoreV1.ResourceList {
 	if p.IsRunning() {
 		podMetrics := p.PodMetrics
 		if podMetrics != nil {

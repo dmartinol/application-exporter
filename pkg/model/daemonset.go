@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	v1 "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sAppsV1 "k8s.io/api/apps/v1"
+	k8sMetaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type DaemonSet struct {
-	Delegate v1.DaemonSet
+	Delegate k8sAppsV1.DaemonSet
 }
 
 func (d DaemonSet) Kind() string {
@@ -31,10 +31,10 @@ func (d DaemonSet) Icon() string {
 func (d DaemonSet) StatusColor() (string, bool) {
 	return "", false
 }
-func (d DaemonSet) OwnerReferences() []metav1.OwnerReference {
+func (d DaemonSet) OwnerReferences() []k8sMetaV1.OwnerReference {
 	return d.Delegate.OwnerReferences
 }
-func (d DaemonSet) IsOwnerOf(owner metav1.OwnerReference) bool {
+func (d DaemonSet) IsOwnerOf(owner k8sMetaV1.OwnerReference) bool {
 	switch owner.Kind {
 	case "DaemonSet":
 		return strings.Compare(owner.Name, d.Name()) == 0
