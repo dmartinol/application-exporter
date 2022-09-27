@@ -24,12 +24,6 @@ func (s StatefulSet) Name() string {
 func (s StatefulSet) Label() string {
 	return s.Delegate.Name
 }
-func (s StatefulSet) Icon() string {
-	return "images/sts.png"
-}
-func (s StatefulSet) StatusColor() (string, bool) {
-	return "", false
-}
 func (s StatefulSet) OwnerReferences() []k8sMetaV1.OwnerReference {
 	return s.Delegate.OwnerReferences
 }

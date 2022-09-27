@@ -25,12 +25,6 @@ func (c CronJob) Label() string {
 	return c.Delegate.Name
 }
 
-func (c CronJob) Icon() string {
-	return "images/deployment.png"
-}
-func (c CronJob) StatusColor() (string, bool) {
-	return "", false
-}
 func (c CronJob) OwnerReferences() []k8sMetaV1.OwnerReference {
 	return c.Delegate.OwnerReferences
 }

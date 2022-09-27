@@ -24,12 +24,7 @@ func (d DeploymentConfig) Name() string {
 func (d DeploymentConfig) Label() string {
 	return d.Delegate.Name
 }
-func (d DeploymentConfig) Icon() string {
-	return "images/deployment.png"
-}
-func (d DeploymentConfig) StatusColor() (string, bool) {
-	return "", false
-}
+
 func (d DeploymentConfig) OwnerReferences() []k8sMetaV1.OwnerReference {
 	return d.Delegate.OwnerReferences
 }

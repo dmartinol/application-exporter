@@ -9,8 +9,6 @@ type Resource interface {
 	Id() string
 	Name() string
 	Label() string
-	Icon() string
-	StatusColor() (string, bool)
 
 	OwnerReferences() []k8sMetaV1.OwnerReference
 	IsOwnerOf(owner k8sMetaV1.OwnerReference) bool
