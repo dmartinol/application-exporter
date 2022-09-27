@@ -26,7 +26,7 @@ func NewExporterService(config *Config) *ExporterService {
 }
 
 func (s *ExporterService) Run() {
-	router.Path("/inventory").Queries("content-type", "{content-type}").Queries("ns-selector", "{ns-selector}").Queries("output", "{output}").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
+	router.Path("/inventory").Queries("content-type", "{content-type}").Queries("ns-selector", "{ns-selector}").Queries("output", "{output}").Queries("with-resources", "{with-resources}").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
 	router.Path("/inventory").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
 
 	url := fmt.Sprintf("0.0.0.0:%d", s.config.ServerPort())
@@ -37,7 +37,7 @@ func (s *ExporterService) Run() {
 }
 
 func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Request) {
-	newConfig := s.config
+	newConfig := *s.config
 
 	contentTypeArg := req.FormValue("content-type")
 	if contentTypeArg != "" {
@@ -58,7 +58,7 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 
 	if req.URL.Path == "/inventory" {
 		if req.Method == "GET" {
-			s.inventory(newConfig, rw)
+			s.inventory(&newConfig, rw)
 		} else {
 			http.Error(rw, fmt.Sprintf("Expect method GET at /, got %v", req.Method), http.StatusMethodNotAllowed)
 		}
@@ -75,14 +75,14 @@ func (s *ExporterService) inventory(newConfig *Config, rw http.ResponseWriter) {
 	}
 	logger.Info("Cluster connected")
 
-	topology, err := NewModelBuilder(s.config).BuildForKubeConfig(kubeConfig)
+	topology, err := NewModelBuilder(newConfig).BuildForKubeConfig(kubeConfig)
 	if err != nil {
 		http.Error(rw, fmt.Sprintf("Cannot build data model: %s", err), http.StatusInternalServerError)
 	}
 
 	fmt := NewFormatterForConfig(newConfig)
 	output := fmt.Format(topology)
-	reporter := NewHttpReporter(s.config, rw)
+	reporter := NewHttpReporter(newConfig, rw)
 	reporter.Report(output)
 }
 
