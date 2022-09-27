@@ -26,7 +26,7 @@ A GitHub action runs at every new release, and generates the following artifacts
 
 The version is printed at the application startup, as in:
 ```bash
-2022-09-23T17:21:58.411+0200	info	The version of ./bin/inventory-exporter-darwin-amd64 is : 0.1.2
+2022-09-23T17:21:58.411+0200	info	The version of ./bin/inventory-exporter-darwin-amd64 is : 0.1.3
 ```
 
 ## Configurable options
@@ -120,7 +120,7 @@ OpenShift [templates](./openshift/) are available to simplify the deployment in 
 * Using an existing image
 ```bash
 export APP_NAMESPACE=exporter
-export APP_IMAGE=quay.io/dmartino/application-exporter:0.1.2
+export APP_IMAGE=quay.io/dmartino/application-exporter:0.1.3
 oc project ${APP_NAMESPACE}
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/rbac.yaml | oc apply -f -
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=${APP_IMAGE} -f openshift/service.yaml | oc apply -f -
@@ -146,7 +146,7 @@ Requirements:
 * Using an existing image
 ```bash
 export APP_NAMESPACE=exporter
-export APP_IMAGE=quay.io/dmartino/application-exporter:0.1.2
+export APP_IMAGE=quay.io/dmartino/application-exporter:0.1.3
 oc project ${APP_NAMESPACE}
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/rbac.yaml | oc apply -f -
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=${APP_IMAGE} -f openshift/serverless.yaml | oc apply -f -
