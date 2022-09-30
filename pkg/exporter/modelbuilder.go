@@ -2,6 +2,8 @@ package exporter
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	model "github.com/dmartinol/application-exporter/pkg/model"
@@ -27,8 +29,7 @@ type ModelBuilder struct {
 	k8sCoreClientV1    *k8sClientCoreV1.CoreV1Client
 	k8sMetricsClientV1 *k8sClientMetrics.Clientset
 
-	topologyModel  *model.TopologyModel
-	namespaceModel *model.NamespaceModel
+	topologyModel *model.TopologyModel
 }
 
 func NewModelBuilder(config *Config) *ModelBuilder {
@@ -39,6 +40,7 @@ func NewModelBuilder(config *Config) *ModelBuilder {
 
 func (builder *ModelBuilder) BuildForKubeConfig(config *rest.Config) (*model.TopologyModel, error) {
 	var err error
+	config.Burst = builder.config.burst
 
 	builder.clientAppsV1, err = clientAppsV1.NewForConfig(config)
 	if err != nil {
@@ -74,6 +76,8 @@ func (builder *ModelBuilder) BuildForKubeConfig(config *rest.Config) (*model.Top
 }
 
 func (builder *ModelBuilder) buildCluster() error {
+	logger.Infof("Starting data collection with max burst of %d", builder.config.burst)
+	startAt := time.Now()
 	var namespaces *k8sCoreV1.NamespaceList
 	var err error
 	nsSelector := builder.config.NamespaceSelector()
@@ -83,83 +87,102 @@ func (builder *ModelBuilder) buildCluster() error {
 		logger.Warnf("Cannot list namespaces by selector %s: %s", nsSelector, err)
 		return err
 	}
+
+	wg := new(sync.WaitGroup)
+
+	nsErr := make(chan error, len(namespaces.Items))
 	for _, namespace := range namespaces.Items {
-		err := builder.buildNamespace(namespace.Name)
-		if err != nil {
-			return err
-		}
+		wg.Add(1)
+		go builder.buildNamespace(wg, namespace.Name, nsErr)
 	}
+	wg.Wait()
+	close(nsErr)
+	var open bool
+	if err, open = <-nsErr; open {
+		return err
+	}
+
+	duration := time.Since(startAt)
+	logger.Infof("Data collection completed in %s (max burst is %d)", duration, builder.config.burst)
+
 	return nil
 }
 
-func (builder *ModelBuilder) buildNamespace(namespace string) error {
-	builder.namespaceModel = builder.topologyModel.AddNamespace(namespace)
+func (builder *ModelBuilder) buildNamespace(wg *sync.WaitGroup, namespace string, nsErr chan error) {
+	defer wg.Done()
+	namespaceModel := builder.topologyModel.AddNamespace(namespace)
 
 	logger.Infof("Running on NS %s", namespace)
-	logger.Debug("=== Deployments ===")
+	logger.Debugf("=== %s Deployments ===", namespace)
 	deployments, err := builder.k8sAppsClientV1.Deployments(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
 	if err != nil {
-		return err
+		nsErr <- err
+		return
 	}
 	for _, deployment := range deployments.Items {
 		logger.Debugf("Found %s/%s", deployment.Kind, deployment.Name)
 		resource := &model.Deployment{Delegate: deployment}
-		builder.namespaceModel.AddResource(resource)
+		namespaceModel.AddResource(resource)
 		builder.buildApplications(namespace, resource)
 	}
 
-	logger.Debug("=== StatefulSets ===")
+	logger.Debugf("=== %s StatefulSets ===", namespace)
 	statefulSets, err := builder.k8sAppsClientV1.StatefulSets(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
 	if err != nil {
-		return err
+		nsErr <- err
+		return
 	}
 	for _, statefulSet := range statefulSets.Items {
 		logger.Debugf("Found %s/%s", statefulSet.Kind, statefulSet.Name)
 		resource := model.StatefulSet{Delegate: statefulSet}
-		builder.namespaceModel.AddResource(resource)
+		namespaceModel.AddResource(resource)
 		builder.buildApplications(namespace, resource)
 	}
 
-	logger.Debug("=== DeploymentConfigs ===")
+	logger.Debugf("=== %s DeploymentConfigs ===", namespace)
 	deploymentConfigs, err := builder.clientAppsV1.DeploymentConfigs(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
 	if err != nil {
-		return err
+		nsErr <- err
+		return
 	}
 	for _, deploymentConfig := range deploymentConfigs.Items {
 		logger.Debugf("Found %s/%s", deploymentConfig.Kind, deploymentConfig.Name)
 		resource := &model.DeploymentConfig{Delegate: deploymentConfig}
-		builder.namespaceModel.AddResource(resource)
+		namespaceModel.AddResource(resource)
 		builder.buildApplications(namespace, resource)
 	}
 
-	logger.Debug("=== CronJobs ===")
+	logger.Debugf("=== %s CronJobs ===", namespace)
 	cronJobs, err := builder.k8sBatchClientV1.CronJobs(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
 	if err != nil {
-		return err
+		nsErr <- err
+		return
 	}
 	for _, cronJob := range cronJobs.Items {
 		logger.Debugf("Found %s/%s", cronJob.Kind, cronJob.Name)
 		resource := &model.CronJob{Delegate: cronJob}
-		builder.namespaceModel.AddResource(resource)
+		namespaceModel.AddResource(resource)
 		builder.buildApplications(namespace, resource)
 	}
 
-	logger.Debug("=== DaemonSets ===")
+	logger.Debugf("=== %s DaemonSets ===", namespace)
 	demonSets, err := builder.k8sAppsClientV1.DaemonSets(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
 	if err != nil {
-		return err
+		nsErr <- err
+		return
 	}
 	for _, demonSet := range demonSets.Items {
 		logger.Debugf("Found %s/%s", demonSet.Kind, demonSet.Name)
 		resource := &model.DaemonSet{Delegate: demonSet}
-		builder.namespaceModel.AddResource(resource)
+		namespaceModel.AddResource(resource)
 		builder.buildApplications(namespace, resource)
 	}
 
-	logger.Debug("=== Pods ===")
+	logger.Debugf("=== %s Pods ===", namespace)
 	pods, err := builder.k8sCoreClientV1.Pods(namespace).List(context.TODO(), k8sMetaV1.ListOptions{})
 	if err != nil {
-		return err
+		nsErr <- err
+		return
 	}
 	for _, pod := range pods.Items {
 		logger.Debugf("Found %s/%s with SA %s", pod.Kind, pod.Name, pod.Spec.ServiceAccountName)
@@ -172,10 +195,10 @@ func (builder *ModelBuilder) buildNamespace(namespace string) error {
 				resource.SetMetrics(podMetrics)
 			}
 		}
-		builder.namespaceModel.AddResource(resource)
+		namespaceModel.AddResource(resource)
 	}
 
-	return nil
+	logger.Infof("Completed NS %s", namespace)
 }
 
 func (builder *ModelBuilder) buildApplications(namespace string, applicationProvider model.ApplicationProvider) {

@@ -133,6 +133,7 @@ type Config struct {
 	contentType       ContentType
 	outputFileName    string
 	withResources     bool
+	burst             int
 }
 
 func NewConfig() *Config {
@@ -160,6 +161,7 @@ func (c *Config) initFromFlags() {
 	contentType := flag.String("content-type", "text", "Content type, one of text, CSV")
 	outputFileName := flag.String("output", "", "Output file name, default is output.<content-type>. File suffix is automatically added")
 	flag.BoolVar(&c.withResources, "with-resources", false, "Include resource configuration and usage")
+	flag.IntVar(&c.burst, "burst", 40, "Maximum burst for throttle")
 	flag.Parse()
 
 	if *asService {
@@ -201,8 +203,8 @@ func (c *Config) String() string {
 	if c.RunAsScript() {
 		serverPort = "NA"
 	}
-	return fmt.Sprintf("Run as: %s, Run in: %v, Server port: %s, Log level: %s, Namespace selector: \"%s\", Content type: %s, Output filename: %s, With resources: %v\n",
-		c.runAs, c.runIn, serverPort, c.logLevel, c.namespaceSelector, c.contentType, c.outputFileName, c.withResources)
+	return fmt.Sprintf("Run as: %s, Run in: %v, Server port: %s, Log level: %s, Namespace selector: \"%s\", Content type: %s, Output filename: %s, With resources: %v, Burst: %d\n",
+		c.runAs, c.runIn, serverPort, c.logLevel, c.namespaceSelector, c.contentType, c.outputFileName, c.withResources, c.burst)
 }
 func (c *Config) RunAsScript() bool {
 	return c.runAs == Script
@@ -234,4 +236,7 @@ func (c *Config) OutputFileName() string {
 }
 func (c *Config) WithResources() bool {
 	return c.withResources
+}
+func (c *Config) Burst() int {
+	return c.burst
 }
