@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 
@@ -58,6 +59,15 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 	withResources := req.FormValue("with-resources")
 	if withResources != "" {
 		newConfig.withResources = true
+	}
+	burstArg := req.FormValue("burst")
+	if burstArg != "" {
+		burst, err := strconv.Atoi(burstArg)
+		if err != nil {
+			logger.Warnf("Disregarding non numeric value %s", req.FormValue("burst"))
+		} else {
+			newConfig.burst = burst
+		}
 	}
 
 	if req.URL.Path == "/inventory" {
