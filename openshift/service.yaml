@@ -10,7 +10,7 @@ objects:
     namespace: ${APP_NAMESPACE}
   data:
     SERVER_PORT: '8080'
-    LOG_LEVEL: debug
+    LOG_LEVEL: info
     # The namespace selector labels (comma separated sequence of key=value)
     NS_SELECTOR: infinitySubChart=true
 - apiVersion: v1

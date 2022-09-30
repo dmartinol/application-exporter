@@ -1,5 +1,7 @@
 package model
 
+import "sync"
+
 type TopologyModel struct {
 	namespacesByName map[string]*NamespaceModel
 	imageByName      map[string]ApplicationImage
@@ -12,9 +14,13 @@ func NewTopologyModel() *TopologyModel {
 	return &topology
 }
 
+var mutex = sync.RWMutex{}
+
 func (topology TopologyModel) AddNamespace(name string) *NamespaceModel {
+	mutex.Lock()
 	namespace := NamespaceModel{name: name, resourcesByKind: make(map[string][]Resource)}
 	topology.namespacesByName[name] = &namespace
+	mutex.Unlock()
 	return &namespace
 }
 func (topology TopologyModel) NamespaceByName(name string) *NamespaceModel {
