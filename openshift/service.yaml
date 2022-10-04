@@ -14,39 +14,49 @@ objects:
     # The namespace selector labels (comma separated sequence of key=value)
     NS_SELECTOR: label=value
     ENVIRONMENT: environment-name
-- apiVersion: v1
-  kind: Pod
+- apiVersion: apps/v1
+  kind: Deployment
   metadata:
     name: application-exporter
     namespace: ${APP_NAMESPACE}
   spec:
-    serviceAccountName: application-exporter
-    containers:
-      - image: ${APP_IMAGE}
-        name: application-exporter
-        imagePullPolicy: Always
-        env:
-        - name: SERVER_PORT
-          valueFrom:
-            configMapKeyRef:
-              key: SERVER_PORT
-              name: exporter-config
-        - name: LOG_LEVEL
-          valueFrom:
-            configMapKeyRef:
-              key: LOG_LEVEL
-              name: exporter-config
-        - name: NS_SELECTOR
-          valueFrom:
-            configMapKeyRef:
-              key: NS_SELECTOR
-              name: exporter-config
-        - name: ENVIRONMENT
-          valueFrom:
-            configMapKeyRef:
-              key: ENVIRONMENT
-        args:
-          - '--with-resources'
+    replicas: 1
+    selector:
+      matchLabels:
+        app: application-exporter
+    template:
+      metadata:
+        labels:
+          app: application-exporter
+      spec:
+        serviceAccountName: application-exporter
+        containers:
+          - image: ${APP_IMAGE}
+            name: application-exporter
+            imagePullPolicy: Always
+            env:
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: SERVER_PORT
+                  name: exporter-config
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  key: LOG_LEVEL
+                  name: exporter-config
+            - name: NS_SELECTOR
+              valueFrom:
+                configMapKeyRef:
+                  key: NS_SELECTOR
+                  name: exporter-config
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  key: ENVIRONMENT
+                  name: exporter-config
+            args:
+              - '--with-resources'
 - kind: Service
   apiVersion: v1
   metadata:
