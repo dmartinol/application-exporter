@@ -132,7 +132,7 @@ oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=${APP_IMAGE} -f opensh
 * Building the image in the local registry from the Git repo:
 ```bash
 export APP_NAMESPACE=exporter
-export APP_IMAGE=image-registry.openshift-image-registry.svc:5000/exporter/application-exporter:latest
+export APP_IMAGE=image-registry.openshift-image-registry.svc:5000/${APP_NAMESPACE}/application-exporter:latest
 oc project ${APP_NAMESPACE}
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/rbac.yaml | oc apply -f -
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/build.yaml | oc apply -f -
@@ -158,7 +158,7 @@ oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=${APP_IMAGE} -f opensh
 * Building the image in the local registry from the Git repo:
 ```bash
 export APP_NAMESPACE=exporter
-export APP_IMAGE=image-registry.openshift-image-registry.svc:5000/exporter/application-exporter:latest
+export APP_IMAGE=image-registry.openshift-image-registry.svc:5000/${APP_NAMESPACE}/application-exporter:latest
 oc project ${APP_NAMESPACE}
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/rbac.yaml | oc apply -f -
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/build.yaml | oc apply -f -
@@ -223,6 +223,8 @@ application_version{version=~"START_NAME.*"}
 
 # All applications resources configuration
 application_resources_config
+# All applications resources configuration for containers ending by a given name
+application_resources_config{container=~".*END_NAME"}
 # All applications resources usage
 application_resources_usage
 ```
