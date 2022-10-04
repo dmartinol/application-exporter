@@ -11,6 +11,7 @@ import (
 
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/dmartinol/application-exporter/pkg/model"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/gorilla/mux"
 	"k8s.io/client-go/rest"
@@ -29,8 +30,12 @@ func NewExporterService(config *Config) *ExporterService {
 }
 
 func (s *ExporterService) Start() {
+	NewExporterMetrics(s.config)
+	logger.Infof("Started metrics")
+
 	router.Path("/inventory").Queries("content-type", "{content-type}").Queries("ns-selector", "{ns-selector}").Queries("output", "{output}").Queries("with-resources", "{with-resources}").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
 	router.Path("/inventory").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
+	router.Path("/metrics").Handler(promhttp.Handler())
 
 	host := "localhost"
 	if s.config.RunInContainer() {
