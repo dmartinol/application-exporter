@@ -47,7 +47,7 @@ objects:
     namespace: ${APP_NAMESPACE}
   spec:
     ports:
-      - name: http-8080
+      - name: http
         protocol: TCP
         port: 8080
         targetPort: 8080
@@ -66,7 +66,7 @@ objects:
       weight: 100
     path: /inventory
     port:
-      targetPort: http-8080
+      targetPort: http
 parameters:
 - description: App namespace
   from: '[A-Z0-9]{8}'
