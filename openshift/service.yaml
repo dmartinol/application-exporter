@@ -40,6 +40,8 @@ objects:
             configMapKeyRef:
               key: NS_SELECTOR
               name: exporter-config
+        args:
+          - '--with-resources'
 - kind: Service
   apiVersion: v1
   metadata:
