@@ -37,7 +37,7 @@ func (f Formatter) Format(topologyModel *model.TopologyModel) *strings.Builder {
 	return sb
 }
 
-func (f Formatter) sortedNamespaces(topologyModel *model.TopologyModel) []model.NamespaceModel {
+func SortedNamespaces(topologyModel *model.TopologyModel) []model.NamespaceModel {
 	namespaces := topologyModel.AllNamespaces()
 	sort.Sort(ByNamespaceName(namespaces))
 	return namespaces
@@ -82,7 +82,7 @@ func memoryUsage(usage k8sCoreV1.ResourceList) string {
 func (f Formatter) text(topologyModel *model.TopologyModel) *strings.Builder {
 	var sb = &strings.Builder{}
 
-	for _, namespace := range f.sortedNamespaces(topologyModel) {
+	for _, namespace := range SortedNamespaces(topologyModel) {
 		for _, applicationProvider := range namespace.AllApplicationProviders() {
 			appendNewLine(sb, "===============\nNamespace: %s\nApplication: %s (%s)", namespace.Name(), applicationProvider.(model.Resource).Name(), applicationProvider.(model.Resource).Kind())
 			for _, applicationConfig := range applicationProvider.ApplicationConfigs() {
@@ -132,7 +132,7 @@ func (f Formatter) csv(topologyModel *model.TopologyModel) *strings.Builder {
 		appendNewLine(sb, "namespace, application, container, imageName, imageVersion, fullImageName")
 	}
 
-	for _, namespace := range f.sortedNamespaces(topologyModel) {
+	for _, namespace := range SortedNamespaces(topologyModel) {
 		for _, applicationProvider := range namespace.AllApplicationProviders() {
 			logger.Debugf("## %s %s", applicationProvider.(model.Resource).Kind(), applicationProvider.(model.Resource).Name())
 			for _, applicationConfig := range applicationProvider.ApplicationConfigs() {
