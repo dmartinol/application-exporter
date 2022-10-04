@@ -127,6 +127,8 @@ type Config struct {
 	runAs RunAs
 	runIn RunIn
 
+	environment string
+
 	serverPort        int
 	logLevel          string
 	namespaceSelector string
@@ -142,6 +144,7 @@ func NewConfig() *Config {
 	config.runAs = Script
 	config.runIn = VM
 
+	config.environment = "default"
 	config.logLevel = "info"
 	config.namespaceSelector = ""
 	config.contentType = Text
@@ -155,6 +158,7 @@ func NewConfig() *Config {
 
 func (c *Config) initFromFlags() {
 	asService := flag.Bool("as-service", false, "Run as REST service")
+	flag.StringVar(&c.environment, "environment", "default", "Environment name (to tag Prometheus metrics)")
 	flag.IntVar(&c.serverPort, "server-port", 8080, "Server port (only for REST service mode)")
 	flag.StringVar(&c.logLevel, "log-level", "info", "Log level, one of debug, info, warn")
 	flag.StringVar(&c.namespaceSelector, "ns-selector", "", "Namespace selector, like label1=value1,label2=value2")
@@ -180,6 +184,9 @@ func (c *Config) initFromEnvVars() {
 	if _, ok := os.LookupEnv("IN_CONTAINER"); ok {
 		c.runIn = Container
 	}
+	if v, ok := os.LookupEnv("ENVIRONMENT"); ok {
+		c.environment = v
+	}
 	if v, ok := os.LookupEnv("LOG_LEVEL"); ok {
 		c.logLevel = v
 	}
@@ -203,8 +210,8 @@ func (c *Config) String() string {
 	if c.RunAsScript() {
 		serverPort = "NA"
 	}
-	return fmt.Sprintf("Run as: %s, Run in: %v, Server port: %s, Log level: %s, Namespace selector: \"%s\", Content type: %s, Output filename: %s, With resources: %v, Burst: %d\n",
-		c.runAs, c.runIn, serverPort, c.logLevel, c.namespaceSelector, c.contentType, c.outputFileName, c.withResources, c.burst)
+	return fmt.Sprintf("Run as: %s, Run in: %v, Environment: %s, Server port: %s, Log level: %s, Namespace selector: \"%s\", Content type: %s, Output filename: %s, With resources: %v, Burst: %d\n",
+		c.runAs, c.runIn, c.environment, serverPort, c.logLevel, c.namespaceSelector, c.contentType, c.outputFileName, c.withResources, c.burst)
 }
 func (c *Config) RunAsScript() bool {
 	return c.runAs == Script
@@ -219,6 +226,9 @@ func (c *Config) RunInContainer() bool {
 	return c.runIn == Container
 }
 
+func (c *Config) Environment() string {
+	return c.environment
+}
 func (c *Config) LogLevel() string {
 	return c.logLevel
 }

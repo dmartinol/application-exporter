@@ -26,15 +26,15 @@ func NewExporterMetrics(config *Config) *ExporterMetrics {
 	exporterMetrics.appVersion = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "application_version",
 		Help: `.`,
-	}, []string{"namespace", "application", "type", "container", "image", "version", "full_image"})
+	}, []string{"environment", "namespace", "application", "type", "container", "image", "version", "full_image"})
 	exporterMetrics.appResourcesConfig = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "application_resources_config",
 		Help: `.`,
-	}, []string{"namespace", "application", "type", "container", "cpu_limits", "memory_limits", "cpu_requests", "memory_requests"})
+	}, []string{"environment", "namespace", "application", "type", "container", "cpu_limits", "memory_limits", "cpu_requests", "memory_requests"})
 	exporterMetrics.appResourcesUsage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "application_resources_usage",
 		Help: `.`,
-	}, []string{"namespace", "application", "type", "pod", "container", "cpu_usage", "memory_usage"})
+	}, []string{"environment", "namespace", "application", "type", "pod", "container", "cpu_usage", "memory_usage"})
 
 	prometheus.Register(&exporterMetrics)
 	return &exporterMetrics
@@ -86,12 +86,12 @@ func (em *ExporterMetrics) Collect(ch chan<- prometheus.Metric) {
 
 // Describe implements prometheus.Collector
 func (m *ExporterMetrics) Describe(ch chan<- *prometheus.Desc) {
-	ch <- m.appVersion.WithLabelValues("", "", "", "", "", "", "").Desc()
+	ch <- m.appVersion.WithLabelValues("", "", "", "", "", "", "", "").Desc()
 }
 
 func (em *ExporterMetrics) applicationVersionMetric(topology *model.TopologyModel, namespace string, application model.Resource, applicationConfig model.ApplicationConfig) prometheus.Gauge {
 	var record []string
-	record = append(record, namespace, application.Name(), application.Kind(), applicationConfig.ContainerName)
+	record = append(record, em.config.Environment(), namespace, application.Name(), application.Kind(), applicationConfig.ContainerName)
 	applicationImage, ok := topology.ImageByName(applicationConfig.ImageName)
 	if ok {
 		record = append(record, applicationImage.ImageName(), applicationImage.ImageVersion(), applicationImage.ImageFullName())
@@ -108,7 +108,7 @@ func (em *ExporterMetrics) applicationVersionMetric(topology *model.TopologyMode
 func (em *ExporterMetrics) resourcesConfigMetric(namespace string, application model.Resource, applicationConfig model.ApplicationConfig) prometheus.Gauge {
 	var record []string
 	res := applicationConfig.Resources
-	record = append(record, namespace, application.Name(), application.Kind(), applicationConfig.ContainerName)
+	record = append(record, em.config.Environment(), namespace, application.Name(), application.Kind(), applicationConfig.ContainerName)
 	record = append(record, CpuLimits(res), MemoryLimits(res), CpuRequests(res), MemoryRequests(res))
 	g := em.appResourcesConfig.WithLabelValues(record...)
 	// TBD
@@ -122,7 +122,7 @@ func (em *ExporterMetrics) resourcesUsageMetric(namespace model.NamespaceModel, 
 	for _, pod := range namespace.AllPodsOf(application) {
 		if pod.IsRunning() {
 			var record []string
-			record = append(record, namespace.Name(), application.Name(), application.Kind(), pod.Name(), applicationConfig.ContainerName)
+			record = append(record, em.config.Environment(), namespace.Name(), application.Name(), application.Kind(), pod.Name(), applicationConfig.ContainerName)
 			usage := pod.UsageForContainer(applicationConfig.ContainerName)
 			if usage != nil {
 				record = append(record, CpuUsage(usage), MemoryUsage(usage))
