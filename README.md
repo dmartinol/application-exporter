@@ -5,6 +5,7 @@ Go application to export the configuration of applications deployed in OpenShift
 * Export configuration in configurable format (text or CSV)
 * Run as a script or a REST service (`POST` to `/inventory` endpoint)
 * Run as a standalone executable or in OpenShift containerized environment (REST service only)
+* Expose metrics to Prometheus monitoring when running in OpenShift 
 
 Sample output in CSV format without the resource configuration and usage data:
 
@@ -131,7 +132,7 @@ oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=${APP_IMAGE} -f opensh
 * Building the image in the local registry from the Git repo:
 ```bash
 export APP_NAMESPACE=exporter
-export APP_IMAGE=image-registry.openshift-image-registry.svc:5000/exporter/application-exporter:latest
+export APP_IMAGE=image-registry.openshift-image-registry.svc:5000/${APP_NAMESPACE}/application-exporter:latest
 oc project ${APP_NAMESPACE}
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/rbac.yaml | oc apply -f -
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/build.yaml | oc apply -f -
@@ -157,7 +158,7 @@ oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=${APP_IMAGE} -f opensh
 * Building the image in the local registry from the Git repo:
 ```bash
 export APP_NAMESPACE=exporter
-export APP_IMAGE=image-registry.openshift-image-registry.svc:5000/exporter/application-exporter:latest
+export APP_IMAGE=image-registry.openshift-image-registry.svc:5000/${APP_NAMESPACE}/application-exporter:latest
 oc project ${APP_NAMESPACE}
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/rbac.yaml | oc apply -f -
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/build.yaml | oc apply -f -
@@ -195,6 +196,37 @@ oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/rbac.yaml | oc delete 
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/build.yaml | oc delete -f -
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=NA -f openshift/service.yaml | oc delete -f -
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=NA -f openshift/serverless.yaml | oc delete -f -
+```
+
+### Installing Prometheus metrics
+Run the following commands to export the `/metrics` endpoint to Prometheus scraping (default interval of `5m`):
+```bash
+export APP_NAMESPACE=exporter
+oc label namespace ${APP_NAMESPACE} openshift.io/cluster-monitoring=true
+oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/servicemonitor.yaml | oc apply -f -
+```
+Run this commands to stop the metrics monitoring:
+```bash
+export APP_NAMESPACE=exporter
+oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/servicemonitor.yaml | oc delete -f -
+```
+**Note**: given the transitory nature of serverless deployments, this option is only supported with the [regular Service](#running-as-a-regular-service) deployment.
+
+Sample of queries you can perform on the `Monitoring>Metrics` console:
+```bash
+# All applications versions
+application_version
+# All applications by version
+application_version{version="A.B.C"}
+# All applications starting by a given name
+application_version{version=~"START_NAME.*"}
+
+# All applications resources configuration
+application_resources_config
+# All applications resources configuration for containers ending by a given name
+application_resources_config{container=~".*END_NAME"}
+# All applications resources usage
+application_resources_usage
 ```
 
 ## Open issues

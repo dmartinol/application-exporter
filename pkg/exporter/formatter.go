@@ -37,7 +37,7 @@ func (f Formatter) Format(topologyModel *model.TopologyModel) *strings.Builder {
 	return sb
 }
 
-func (f Formatter) sortedNamespaces(topologyModel *model.TopologyModel) []model.NamespaceModel {
+func SortedNamespaces(topologyModel *model.TopologyModel) []model.NamespaceModel {
 	namespaces := topologyModel.AllNamespaces()
 	sort.Sort(ByNamespaceName(namespaces))
 	return namespaces
@@ -47,42 +47,42 @@ func appendNewLine(sb *strings.Builder, format string, args ...any) {
 	sb.WriteString(fmt.Sprintf(format+"\n", args...))
 }
 
-func cpuLimits(resources k8sCoreV1.ResourceRequirements) string {
+func CpuLimits(resources k8sCoreV1.ResourceRequirements) string {
 	if val, ok := resources.Limits[k8sCoreV1.ResourceCPU]; ok {
 		return val.String()
 	}
 	return "NA"
 }
-func memoryLimits(resources k8sCoreV1.ResourceRequirements) string {
+func MemoryLimits(resources k8sCoreV1.ResourceRequirements) string {
 	if val, ok := resources.Limits[k8sCoreV1.ResourceMemory]; ok {
 		return val.String()
 	}
 	return "NA"
 }
-func cpuRequests(resources k8sCoreV1.ResourceRequirements) string {
+func CpuRequests(resources k8sCoreV1.ResourceRequirements) string {
 	if val, ok := resources.Requests[k8sCoreV1.ResourceCPU]; ok {
 		return val.String()
 	}
 	return "NA"
 }
-func memoryRequests(resources k8sCoreV1.ResourceRequirements) string {
+func MemoryRequests(resources k8sCoreV1.ResourceRequirements) string {
 	if val, ok := resources.Requests[k8sCoreV1.ResourceMemory]; ok {
 		return val.String()
 	}
 	return "NA"
 }
 
-func cpuUsage(usage k8sCoreV1.ResourceList) string {
+func CpuUsage(usage k8sCoreV1.ResourceList) string {
 	return usage.Cpu().String()
 }
-func memoryUsage(usage k8sCoreV1.ResourceList) string {
+func MemoryUsage(usage k8sCoreV1.ResourceList) string {
 	return usage.Memory().String()
 }
 
 func (f Formatter) text(topologyModel *model.TopologyModel) *strings.Builder {
 	var sb = &strings.Builder{}
 
-	for _, namespace := range f.sortedNamespaces(topologyModel) {
+	for _, namespace := range SortedNamespaces(topologyModel) {
 		for _, applicationProvider := range namespace.AllApplicationProviders() {
 			appendNewLine(sb, "===============\nNamespace: %s\nApplication: %s (%s)", namespace.Name(), applicationProvider.(model.Resource).Name(), applicationProvider.(model.Resource).Kind())
 			for _, applicationConfig := range applicationProvider.ApplicationConfigs() {
@@ -99,18 +99,18 @@ func (f Formatter) text(topologyModel *model.TopologyModel) *strings.Builder {
 				}
 				if f.config.WithResources() {
 					res := applicationConfig.Resources
-					appendNewLine(sb, "Limits: %s CPU, %s memory\nRequests: %s CPU, %s memory", cpuLimits(res), memoryLimits(res), cpuRequests(res), memoryRequests(res))
+					appendNewLine(sb, "Limits: %s CPU, %s memory\nRequests: %s CPU, %s memory", CpuLimits(res), MemoryLimits(res), CpuRequests(res), MemoryRequests(res))
 
 					for _, pod := range namespace.AllPodsOf(applicationProvider.(model.Resource)) {
 						if pod.IsRunning() {
 							appendNewLine(sb, "\nPod name: %s", pod.Name())
 							usage := pod.UsageForContainer(applicationConfig.ContainerName)
 							if usage != nil {
-								appendNewLine(sb, "Usage: %s CPU, %s memory", cpuUsage(usage), memoryUsage(usage))
+								appendNewLine(sb, "Usage: %s CPU, %s memory", CpuUsage(usage), MemoryUsage(usage))
 							} else {
 								usage = pod.UsageForContainer(pod.Name())
 								if usage != nil {
-									appendNewLine(sb, "Usage: %s CPU, %s memory", cpuUsage(usage), memoryUsage(usage))
+									appendNewLine(sb, "Usage: %s CPU, %s memory", CpuUsage(usage), MemoryUsage(usage))
 								} else {
 									appendNewLine(sb, "No Usage metrics")
 								}
@@ -132,7 +132,7 @@ func (f Formatter) csv(topologyModel *model.TopologyModel) *strings.Builder {
 		appendNewLine(sb, "namespace, application, container, imageName, imageVersion, fullImageName")
 	}
 
-	for _, namespace := range f.sortedNamespaces(topologyModel) {
+	for _, namespace := range SortedNamespaces(topologyModel) {
 		for _, applicationProvider := range namespace.AllApplicationProviders() {
 			logger.Debugf("## %s %s", applicationProvider.(model.Resource).Kind(), applicationProvider.(model.Resource).Name())
 			for _, applicationConfig := range applicationProvider.ApplicationConfigs() {
@@ -146,7 +146,7 @@ func (f Formatter) csv(topologyModel *model.TopologyModel) *strings.Builder {
 				}
 				if f.config.WithResources() {
 					res := applicationConfig.Resources
-					record = append(record, cpuLimits(res), memoryLimits(res), cpuRequests(res), memoryRequests(res))
+					record = append(record, CpuLimits(res), MemoryLimits(res), CpuRequests(res), MemoryRequests(res))
 
 					headerRecord := make([]string, len(record))
 					copy(headerRecord, record)
@@ -155,11 +155,11 @@ func (f Formatter) csv(topologyModel *model.TopologyModel) *strings.Builder {
 						if pod.IsRunning() {
 							usage := pod.UsageForContainer(applicationConfig.ContainerName)
 							if usage != nil {
-								record = append(headerRecord, pod.Name(), cpuUsage(usage), memoryUsage(usage))
+								record = append(headerRecord, pod.Name(), CpuUsage(usage), MemoryUsage(usage))
 							} else {
 								usage = pod.UsageForContainer(pod.Name())
 								if usage != nil {
-									record = append(headerRecord, pod.Name(), cpuUsage(usage), memoryUsage(usage))
+									record = append(headerRecord, pod.Name(), CpuUsage(usage), MemoryUsage(usage))
 								} else {
 									record = append(headerRecord, pod.Name(), "NA", "NA")
 								}

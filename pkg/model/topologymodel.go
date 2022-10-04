@@ -34,7 +34,9 @@ func (topology TopologyModel) AllNamespaces() []NamespaceModel {
 	return namespaces
 }
 func (topology TopologyModel) AddImage(imageName string, image ApplicationImage) {
+	mutex.Lock()
 	topology.imageByName[imageName] = image
+	mutex.Unlock()
 }
 func (topology TopologyModel) ImageByName(imageName string) (ApplicationImage, bool) {
 	image, ok := topology.imageByName[imageName]

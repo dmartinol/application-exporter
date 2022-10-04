@@ -7,8 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	logger "github.com/dmartinol/application-exporter/pkg/log"
+	"github.com/dmartinol/application-exporter/pkg/model"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/gorilla/mux"
 	"k8s.io/client-go/rest"
@@ -26,9 +29,13 @@ func NewExporterService(config *Config) *ExporterService {
 	return &ExporterService{config: config}
 }
 
-func (s *ExporterService) Run() {
+func (s *ExporterService) Start() {
+	NewExporterMetrics(s.config)
+	logger.Infof("Started metrics")
+
 	router.Path("/inventory").Queries("content-type", "{content-type}").Queries("ns-selector", "{ns-selector}").Queries("output", "{output}").Queries("with-resources", "{with-resources}").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
 	router.Path("/inventory").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
+	router.Path("/metrics").Handler(promhttp.Handler())
 
 	host := "localhost"
 	if s.config.RunInContainer() {
@@ -39,6 +46,22 @@ func (s *ExporterService) Run() {
 	if err := http.ListenAndServe(url, router); err != nil {
 		logger.Fatal(err)
 	}
+
+}
+
+type ExporterServiceRunner struct {
+	config *Config
+	rw     http.ResponseWriter
+	req    *http.Request
+}
+
+func (s *ExporterService) newRunner(config *Config, rw http.ResponseWriter, req *http.Request) ExporterServiceRunner {
+	runner := ExporterServiceRunner{}
+	runner.rw = rw
+	runner.req = req
+	runner.config = config
+
+	return runner
 }
 
 func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Request) {
@@ -72,7 +95,8 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 
 	if req.URL.Path == "/inventory" {
 		if req.Method == "POST" {
-			s.inventory(&newConfig, rw)
+			runner := s.newRunner(&newConfig, rw, req)
+			RunExporter(runner)
 		} else {
 			http.Error(rw, fmt.Sprintf("Expect method POST at /, got %v", req.Method), http.StatusMethodNotAllowed)
 		}
@@ -82,25 +106,34 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 	}
 }
 
-func (s *ExporterService) inventory(newConfig *Config, rw http.ResponseWriter) {
-	kubeConfig, err := s.connectCluster()
+func (r ExporterServiceRunner) Connect() (*rest.Config, error) {
+	kubeConfig, err := r.connectCluster()
 	if err != nil {
-		http.Error(rw, fmt.Sprintf("Cannot connect cluster: %s", err), http.StatusInternalServerError)
+		http.Error(r.rw, fmt.Sprintf("Cannot connect cluster: %s", err), http.StatusInternalServerError)
 	}
-	logger.Info("Cluster connected")
+	return kubeConfig, err
+}
 
-	topology, err := NewModelBuilder(newConfig).BuildForKubeConfig(kubeConfig)
+func (r ExporterServiceRunner) Collect(kubeConfig *rest.Config) (*model.TopologyModel, error) {
+	topology, err := NewModelBuilder(r.config).BuildForKubeConfig(kubeConfig)
 	if err != nil {
-		http.Error(rw, fmt.Sprintf("Cannot build data model: %s", err), http.StatusInternalServerError)
+		http.Error(r.rw, fmt.Sprintf("Cannot build data model: %s", err), http.StatusInternalServerError)
+		return nil, err
 	}
+	return topology, nil
+}
 
-	fmt := NewFormatterForConfig(newConfig)
-	output := fmt.Format(topology)
-	reporter := NewHttpReporter(newConfig, rw)
+func (r ExporterServiceRunner) Transform(topology *model.TopologyModel) *strings.Builder {
+	fmt := NewFormatterForConfig(r.config)
+	return fmt.Format(topology)
+}
+
+func (r ExporterServiceRunner) Report(output *strings.Builder) {
+	reporter := NewHttpReporter(r.config, r.rw)
 	reporter.Report(output)
 }
 
-func (s *ExporterService) initKubeconfig() *string {
+func (s ExporterServiceRunner) initKubeconfig() *string {
 	if home := s.homeDir(); home != "" {
 		return flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "")
 	} else {
@@ -108,7 +141,7 @@ func (s *ExporterService) initKubeconfig() *string {
 	}
 }
 
-func (s *ExporterService) connectCluster() (*rest.Config, error) {
+func (s ExporterServiceRunner) connectCluster() (*rest.Config, error) {
 	if s.config.RunInContainer() {
 		return rest.InClusterConfig()
 	} else {
@@ -120,7 +153,7 @@ func (s *ExporterService) connectCluster() (*rest.Config, error) {
 	}
 }
 
-func (s *ExporterService) homeDir() string {
+func (s ExporterServiceRunner) homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
 		return h
 	}

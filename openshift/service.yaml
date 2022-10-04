@@ -12,7 +12,8 @@ objects:
     SERVER_PORT: '8080'
     LOG_LEVEL: info
     # The namespace selector labels (comma separated sequence of key=value)
-    NS_SELECTOR: infinitySubChart=true
+    NS_SELECTOR: label=value
+    ENVIRONMENT: environment-name
 - apiVersion: v1
   kind: Pod
   metadata:
@@ -40,6 +41,12 @@ objects:
             configMapKeyRef:
               key: NS_SELECTOR
               name: exporter-config
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              key: ENVIRONMENT
+        args:
+          - '--with-resources'
 - kind: Service
   apiVersion: v1
   metadata:
@@ -47,7 +54,7 @@ objects:
     namespace: ${APP_NAMESPACE}
   spec:
     ports:
-      - name: http-8080
+      - name: http
         protocol: TCP
         port: 8080
         targetPort: 8080
@@ -66,7 +73,7 @@ objects:
       weight: 100
     path: /inventory
     port:
-      targetPort: http-8080
+      targetPort: http
 parameters:
 - description: App namespace
   from: '[A-Z0-9]{8}'

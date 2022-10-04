@@ -21,5 +21,5 @@ func main() {
 	} else {
 		exporter = exp.NewExporterService(config)
 	}
-	exporter.Run()
+	exporter.Start()
 }

@@ -4,8 +4,10 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 
 	logger "github.com/dmartinol/application-exporter/pkg/log"
+	"github.com/dmartinol/application-exporter/pkg/model"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -19,39 +21,55 @@ func NewExporterApp(config *Config) *ExporterApp {
 	return &ExporterApp{config: config}
 }
 
-func (app *ExporterApp) Run() {
-	kubeConfig, err := app.connectCluster()
-	if err != nil {
-		logger.Fatalf("Cannot connect cluster: %s", err)
-	}
-	logger.Info("Cluster connected")
+func (app *ExporterApp) Start() {
+	runner := app.newRunner()
+	RunExporter(runner)
+}
 
-	topology, err := NewModelBuilder(app.config).BuildForKubeConfig(kubeConfig)
+type ExporterAppRunner struct {
+	config *Config
+}
+
+func (app *ExporterApp) newRunner() ExporterAppRunner {
+	runner := ExporterAppRunner{}
+	runner.config = app.config
+
+	return runner
+}
+
+func (r ExporterAppRunner) Connect() (*rest.Config, error) {
+	//Load config for Openshift's go-client from kubeconfig file
+	return clientcmd.BuildConfigFromFlags("", *r.initKubeconfig())
+}
+
+func (r ExporterAppRunner) Collect(kubeConfig *rest.Config) (*model.TopologyModel, error) {
+	topology, err := NewModelBuilder(r.config).BuildForKubeConfig(kubeConfig)
 	if err != nil {
 		logger.Fatalf("Cannot build data model", err)
+		return nil, err
 	}
+	return topology, nil
+}
 
-	fmt := NewFormatterForConfig(app.config)
+func (r ExporterAppRunner) Transform(topology *model.TopologyModel) *strings.Builder {
+	fmt := NewFormatterForConfig(r.config)
 	output := fmt.Format(topology)
-	reporter := NewFileReporter(app.config)
+	return output
+}
+func (r ExporterAppRunner) Report(output *strings.Builder) {
+	reporter := NewFileReporter(r.config)
 	reporter.Report(output)
 }
 
-func (app *ExporterApp) initKubeconfig() *string {
-	if home := app.homeDir(); home != "" {
+func (r ExporterAppRunner) initKubeconfig() *string {
+	if home := r.homeDir(); home != "" {
 		return flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "")
 	} else {
 		return flag.String("kubeconfig", "", "")
 	}
 }
 
-func (app *ExporterApp) connectCluster() (*rest.Config, error) {
-	kubeconfig := app.initKubeconfig()
-	//Load config for Openshift's go-client from kubeconfig file
-	return clientcmd.BuildConfigFromFlags("", *kubeconfig)
-}
-
-func (app *ExporterApp) homeDir() string {
+func (r ExporterAppRunner) homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
 		return h
 	}
