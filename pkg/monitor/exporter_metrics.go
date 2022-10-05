@@ -2,7 +2,11 @@ package monitor
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/dmartinol/application-exporter/pkg/config"
 	cfg "github.com/dmartinol/application-exporter/pkg/config"
@@ -11,6 +15,7 @@ import (
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/dmartinol/application-exporter/pkg/model"
 	"github.com/gorilla/mux"
+	"github.com/magiconair/properties"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -22,8 +27,9 @@ import (
  */
 
 type ExporterMetrics struct {
-	config             *config.Config
-	runnerConfigs      []*config.RunnerConfig
+	config        *config.Config
+	runnerConfigs []*config.RunnerConfig
+
 	appVersion         *prometheus.GaugeVec
 	appResourcesConfig *prometheus.GaugeVec
 	appResourcesUsage  *prometheus.GaugeVec
@@ -33,9 +39,10 @@ var router = mux.NewRouter()
 
 func NewExporterMetrics(config *cfg.Config) *ExporterMetrics {
 	exporterMetrics := ExporterMetrics{}
-	// TODO init runnerConfigs
+
 	exporterMetrics.runnerConfigs = make([]*cfg.RunnerConfig, 0)
-	// TBD maybe not used
+	exporterMetrics.initRunnerConfigs()
+
 	exporterMetrics.config = config
 	exporterMetrics.appVersion = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "application_version",
@@ -176,4 +183,32 @@ func (em *ExporterMetrics) resourcesUsageMetric(runnerConfig *cfg.RunnerConfig, 
 	}
 
 	return metrics
+}
+
+func (em *ExporterMetrics) initRunnerConfigs() {
+	configFolder := "/etc/exporter"
+	if v, ok := os.LookupEnv("CONFIG_FOLDER"); ok {
+		configFolder = v
+	}
+	logger.Infof("Scanning config folder %s", configFolder)
+	files, err := ioutil.ReadDir(configFolder)
+	if err != nil {
+		logger.Fatalf("Cannot read config folder %s: %s", configFolder, err)
+	}
+
+	for _, file := range files {
+		fileName := filepath.Join(configFolder, file.Name())
+		if file.IsDir() {
+			logger.Warnf("Skipping directory %s", fileName)
+		} else if !strings.HasSuffix(file.Name(), ".conf") {
+			logger.Warnf("Skipping unmanaged file %s", fileName)
+		} else {
+			logger.Infof("Reading config from %s", fileName, file.IsDir())
+			p := properties.MustLoadFile(fileName, properties.UTF8)
+
+			runnerConfig := cfg.NewRunnerConfigFromProperties(p)
+			logger.Infof("Added runner config: %s", runnerConfig)
+			em.runnerConfigs = append(em.runnerConfigs, runnerConfig)
+		}
+	}
 }

@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/magiconair/properties"
 )
 
 type RunAs int64
@@ -171,6 +173,14 @@ func NewRunnerConfig() *RunnerConfig {
 	runnerConfig.environment = "default"
 	runnerConfig.namespaceSelector = ""
 	runnerConfig.outputFileName = "output"
+	return &runnerConfig
+}
+
+func NewRunnerConfigFromProperties(p *properties.Properties) *RunnerConfig {
+	runnerConfig := RunnerConfig{}
+	runnerConfig.environment = p.GetString("environment", "default")
+	runnerConfig.namespaceSelector = p.GetString("ns-selector", "")
+	runnerConfig.outputFileName = p.GetString("output", "output")
 	return &runnerConfig
 }
 

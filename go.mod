@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/gorilla/mux v1.8.0
+	github.com/magiconair/properties v1.8.6
 	github.com/openshift/api v0.0.0-20200323095748-e7041f8762a3
 	github.com/openshift/client-go v0.0.0-20200320150128-a906f3d8e723
 	github.com/prometheus/client_golang v1.13.0

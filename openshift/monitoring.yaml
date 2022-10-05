@@ -1,7 +1,7 @@
 apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
-  name: exporter-service
+  name: exporter-monitor
 objects:
 - apiVersion: v1
   kind: ConfigMap
@@ -11,32 +11,38 @@ objects:
   data:
     SERVER_PORT: '8080'
     LOG_LEVEL: info
-    # The namespace selector labels (comma separated sequence of key=value)
-    NS_SELECTOR: label=value
-    ENVIRONMENT: environment-name
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: exporter-monitoring-config
+    namespace: ${APP_NAMESPACE}
+  data:
+    example.conf: |
+      environment=example
+      ns-selector=app=example
 - apiVersion: apps/v1
   kind: Deployment
   metadata:
-    name: application-exporter
+    name: application-exporter-monitoring
     namespace: ${APP_NAMESPACE}
   spec:
     replicas: 1
     selector:
       matchLabels:
-        app: application-exporter
+        app: application-exporter-monitoring
     template:
       metadata:
         labels:
-          app: application-exporter
+          app: application-exporter-monitoring
       spec:
         serviceAccountName: application-exporter
         containers:
           - image: ${APP_IMAGE}
-            name: application-exporter
+            name: application-exporter-monitoring
             imagePullPolicy: Always
             env:
             - name: RUN_MODE
-              value: REST
+              value: monitoring
             - name: SERVER_PORT
               valueFrom:
                 configMapKeyRef:
@@ -47,20 +53,19 @@ objects:
                 configMapKeyRef:
                   key: LOG_LEVEL
                   name: exporter-config
-            - name: NS_SELECTOR
-              valueFrom:
-                configMapKeyRef:
-                  key: NS_SELECTOR
-                  name: exporter-config
-            - name: ENVIRONMENT
-              valueFrom:
-                configMapKeyRef:
-                  key: ENVIRONMENT
-                  name: exporter-config
+            args:
+              - '--with-resources'
+            volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+        volumes:
+          - name: config-volume
+            configMap:
+              name: exporter-monitoring-config
 - kind: Service
   apiVersion: v1
   metadata:
-    name: application-exporter
+    name: application-exporter-monitoring
     namespace: ${APP_NAMESPACE}
   spec:
     ports:
@@ -69,21 +74,24 @@ objects:
         port: 8080
         targetPort: 8080
     selector:
-      app: application-exporter
+      app: application-exporter-monitoring
     type: ClusterIP
-- kind: Route
-  apiVersion: route.openshift.io/v1
+- apiVersion: monitoring.coreos.com/v1
+  kind: ServiceMonitor
   metadata:
-    name: inventory-exporter
+    labels:
+      k8s-app: application-exporter-monitoring
+    name: application-exporter
     namespace: ${APP_NAMESPACE}
   spec:
-    to:
-      kind: Service
-      name: application-exporter
-      weight: 100
-    path: /inventory
-    port:
-      targetPort: http
+    endpoints:
+    - interval: 5m
+      path: /metrics
+      port: http
+      scheme: http
+    selector:
+      matchLabels:
+        app: application-exporter-monitoring
 parameters:
 - description: App namespace
   from: '[A-Z0-9]{8}'
@@ -94,4 +102,4 @@ parameters:
   generate: expression
   name: APP_IMAGE
 labels:
-  app: application-exporter
+  app: application-exporter-monitoring
