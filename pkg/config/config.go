@@ -175,8 +175,7 @@ func NewRunnerConfig() *RunnerConfig {
 }
 
 func (c *Config) initFromFlags() {
-	asService := flag.Bool("as-service", false, "Run as REST service")
-	isMonitoring := flag.Bool("is-monitoring", false, "Run as REST service for Prometheus scraping")
+	runMode := flag.String("run-mode", "script", "Run mode, one of script, REST or monitoring")
 	flag.IntVar(&c.serverPort, "server-port", 8080, "Server port (only for REST service mode)")
 	flag.StringVar(&c.logLevel, "log-level", "info", "Log level, one of debug, info, warn")
 	contentType := flag.String("content-type", "text", "Content type, one of text, CSV")
@@ -184,15 +183,13 @@ func (c *Config) initFromFlags() {
 	flag.BoolVar(&c.withResources, "with-resources", false, "Include resource configuration and usage")
 	flag.IntVar(&c.burst, "burst", 40, "Maximum burst for throttle")
 
-	flag.StringVar(&c.runnerConfig.environment, "environment", "default", "Environment name (to tag Prometheus metrics)")
-	flag.StringVar(&c.runnerConfig.namespaceSelector, "ns-selector", "", "Namespace selector, like label1=value1,label2=value2")
-	outputFileName := flag.String("output", "", "Output file name, default is output.<content-type>. File suffix is automatically added")
+	flag.StringVar(&c.runnerConfig.environment, "environment", "default", "Global environment name to tag Prometheus metrics")
+	flag.StringVar(&c.runnerConfig.namespaceSelector, "ns-selector", "", "Global namespace selector, like label1=value1,label2=value2")
+	outputFileName := flag.String("output", "", "Global output file name, default is output.<content-type>. File suffix is automatically added")
 	flag.Parse()
 
-	if *asService {
-		c.runAs = Rest
-	} else if *isMonitoring {
-		c.runAs = Monitoring
+	if *runMode != "" {
+		c.runAs = RunAsFromString(*runMode)
 	}
 	if *outputFileName != "" {
 		c.runnerConfig.outputFileName = *outputFileName
@@ -200,14 +197,11 @@ func (c *Config) initFromFlags() {
 }
 
 func (c *Config) initFromEnvVars() {
-	if _, ok := os.LookupEnv("AS_SERVICE"); ok {
-		c.runAs = Rest
+	if v, ok := os.LookupEnv("RUN_MODE"); ok {
+		c.runAs = RunAsFromString(v)
 	}
 	if _, ok := os.LookupEnv("IN_CONTAINER"); ok {
 		c.runIn = Container
-	}
-	if _, ok := os.LookupEnv("IS_MONITORING"); ok {
-		c.runAs = Monitoring
 	}
 	if v, ok := os.LookupEnv("LOG_LEVEL"); ok {
 		c.logLevel = v

@@ -35,6 +35,8 @@ objects:
             name: application-exporter
             imagePullPolicy: Always
             env:
+            - name: RUN_MODE
+              value: REST
             - name: SERVER_PORT
               valueFrom:
                 configMapKeyRef:

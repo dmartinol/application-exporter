@@ -17,7 +17,7 @@ FROM alpine:3 as runner
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /tmp/exporter /go/bin/exporter
 
-ENV AS_SERVICE='true'
+ENV RUN_MODE='REST'
 ENV IN_CONTAINER='true'
 ENV LOG_LEVEL='info'
 ENV NS_SELECTOR='label=value'
