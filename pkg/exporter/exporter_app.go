@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/dmartinol/application-exporter/pkg/config"
+	"github.com/dmartinol/application-exporter/pkg/formatter"
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/dmartinol/application-exporter/pkg/model"
 
@@ -14,10 +16,10 @@ import (
 )
 
 type ExporterApp struct {
-	config *Config
+	config *config.Config
 }
 
-func NewExporterApp(config *Config) *ExporterApp {
+func NewExporterApp(config *config.Config) *ExporterApp {
 	return &ExporterApp{config: config}
 }
 
@@ -27,7 +29,7 @@ func (app *ExporterApp) Start() {
 }
 
 type ExporterAppRunner struct {
-	config *Config
+	config *config.Config
 }
 
 func (app *ExporterApp) newRunner() ExporterAppRunner {
@@ -52,7 +54,7 @@ func (r ExporterAppRunner) Collect(kubeConfig *rest.Config) (*model.TopologyMode
 }
 
 func (r ExporterAppRunner) Transform(topology *model.TopologyModel) *strings.Builder {
-	fmt := NewFormatterForConfig(r.config)
+	fmt := formatter.NewFormatterForConfig(r.config)
 	output := fmt.Format(topology)
 	return output
 }

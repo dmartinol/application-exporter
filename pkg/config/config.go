@@ -1,4 +1,4 @@
-package exporter
+package config
 
 import (
 	"flag"
@@ -14,6 +14,7 @@ type RunAs int64
 const (
 	Script RunAs = iota
 	Rest
+	Monitoring
 )
 
 func (r RunAs) String() string {
@@ -22,6 +23,8 @@ func (r RunAs) String() string {
 		return "Script"
 	case Rest:
 		return "REST"
+	case Monitoring:
+		return "Monitoring"
 	}
 	return "unknown"
 }
@@ -31,6 +34,8 @@ func RunAsFromString(runtimeMode string) RunAs {
 		return Script
 	case "rest":
 		return Rest
+	case "monitoring":
+		return Monitoring
 	}
 	return Script
 }
@@ -158,6 +163,7 @@ func NewConfig() *Config {
 
 func (c *Config) initFromFlags() {
 	asService := flag.Bool("as-service", false, "Run as REST service")
+	isMonitoring := flag.Bool("is-monitoring", false, "Run as REST service for Prometheus scraping")
 	flag.StringVar(&c.environment, "environment", "default", "Environment name (to tag Prometheus metrics)")
 	flag.IntVar(&c.serverPort, "server-port", 8080, "Server port (only for REST service mode)")
 	flag.StringVar(&c.logLevel, "log-level", "info", "Log level, one of debug, info, warn")
@@ -170,6 +176,8 @@ func (c *Config) initFromFlags() {
 
 	if *asService {
 		c.runAs = Rest
+	} else if *isMonitoring {
+		c.runAs = Monitoring
 	}
 	c.contentType = ContentTypeFromString(*contentType)
 	if *outputFileName != "" {
@@ -183,6 +191,9 @@ func (c *Config) initFromEnvVars() {
 	}
 	if _, ok := os.LookupEnv("IN_CONTAINER"); ok {
 		c.runIn = Container
+	}
+	if _, ok := os.LookupEnv("IS_MONITORING"); ok {
+		c.runAs = Monitoring
 	}
 	if v, ok := os.LookupEnv("ENVIRONMENT"); ok {
 		c.environment = v
@@ -219,6 +230,9 @@ func (c *Config) RunAsScript() bool {
 func (c *Config) RunAsService() bool {
 	return c.runAs == Rest
 }
+func (c *Config) RunAsMonitoring() bool {
+	return c.runAs == Monitoring
+}
 func (c *Config) RunInVM() bool {
 	return c.runIn == VM
 }
@@ -249,4 +263,20 @@ func (c *Config) WithResources() bool {
 }
 func (c *Config) Burst() int {
 	return c.burst
+}
+
+func (c *Config) SetContentType(contentType ContentType) {
+	c.contentType = contentType
+}
+func (c *Config) SetNamespaceSelector(namespaceSelector string) {
+	c.namespaceSelector = namespaceSelector
+}
+func (c *Config) SetOutputFileName(outputFileName string) {
+	c.outputFileName = outputFileName
+}
+func (c *Config) SetWithResources(withResources bool) {
+	c.withResources = withResources
+}
+func (c *Config) SetBurst(burst int) {
+	c.burst = burst
 }

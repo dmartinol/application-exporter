@@ -9,9 +9,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dmartinol/application-exporter/pkg/config"
+	"github.com/dmartinol/application-exporter/pkg/formatter"
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/dmartinol/application-exporter/pkg/model"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/gorilla/mux"
 	"k8s.io/client-go/rest"
@@ -22,20 +23,16 @@ var kubeconfig *string
 var router = mux.NewRouter()
 
 type ExporterService struct {
-	config *Config
+	config *config.Config
 }
 
-func NewExporterService(config *Config) *ExporterService {
+func NewExporterService(config *config.Config) *ExporterService {
 	return &ExporterService{config: config}
 }
 
 func (s *ExporterService) Start() {
-	NewExporterMetrics(s.config)
-	logger.Infof("Started metrics")
-
 	router.Path("/inventory").Queries("content-type", "{content-type}").Queries("ns-selector", "{ns-selector}").Queries("output", "{output}").Queries("with-resources", "{with-resources}").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
 	router.Path("/inventory").HandlerFunc(s.inventoryHandler).Name("inventoryHandler")
-	router.Path("/metrics").Handler(promhttp.Handler())
 
 	host := "localhost"
 	if s.config.RunInContainer() {
@@ -46,16 +43,15 @@ func (s *ExporterService) Start() {
 	if err := http.ListenAndServe(url, router); err != nil {
 		logger.Fatal(err)
 	}
-
 }
 
 type ExporterServiceRunner struct {
-	config *Config
+	config *config.Config
 	rw     http.ResponseWriter
 	req    *http.Request
 }
 
-func (s *ExporterService) newRunner(config *Config, rw http.ResponseWriter, req *http.Request) ExporterServiceRunner {
+func (s *ExporterService) NewRunner(config *config.Config, rw http.ResponseWriter, req *http.Request) ExporterServiceRunner {
 	runner := ExporterServiceRunner{}
 	runner.rw = rw
 	runner.req = req
@@ -69,19 +65,19 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 
 	contentTypeArg := req.FormValue("content-type")
 	if contentTypeArg != "" {
-		newConfig.contentType = ContentTypeFromString(contentTypeArg)
+		newConfig.SetContentType(config.ContentTypeFromString(contentTypeArg))
 	}
 	namespaceSelector := req.FormValue("ns-selector")
 	if namespaceSelector != "" {
-		newConfig.namespaceSelector = namespaceSelector
+		newConfig.SetNamespaceSelector(namespaceSelector)
 	}
 	outputFileName := req.FormValue("output")
 	if outputFileName != "" {
-		newConfig.outputFileName = outputFileName
+		newConfig.SetOutputFileName(outputFileName)
 	}
 	withResources := req.FormValue("with-resources")
 	if withResources != "" {
-		newConfig.withResources = true
+		newConfig.SetWithResources(true)
 	}
 	burstArg := req.FormValue("burst")
 	if burstArg != "" {
@@ -89,13 +85,13 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 		if err != nil {
 			logger.Warnf("Disregarding non numeric value %s", req.FormValue("burst"))
 		} else {
-			newConfig.burst = burst
+			newConfig.SetBurst(burst)
 		}
 	}
 
 	if req.URL.Path == "/inventory" {
 		if req.Method == "POST" {
-			runner := s.newRunner(&newConfig, rw, req)
+			runner := s.NewRunner(&newConfig, rw, req)
 			RunExporter(runner)
 		} else {
 			http.Error(rw, fmt.Sprintf("Expect method POST at /, got %v", req.Method), http.StatusMethodNotAllowed)
@@ -124,7 +120,7 @@ func (r ExporterServiceRunner) Collect(kubeConfig *rest.Config) (*model.Topology
 }
 
 func (r ExporterServiceRunner) Transform(topology *model.TopologyModel) *strings.Builder {
-	fmt := NewFormatterForConfig(r.config)
+	fmt := formatter.NewFormatterForConfig(r.config)
 	return fmt.Format(topology)
 }
 

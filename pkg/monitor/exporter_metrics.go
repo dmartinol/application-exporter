@@ -1,9 +1,17 @@
-package exporter
+package monitor
 
 import (
+	"fmt"
+	"net/http"
+
+	"github.com/dmartinol/application-exporter/pkg/config"
+	"github.com/dmartinol/application-exporter/pkg/exporter"
+	"github.com/dmartinol/application-exporter/pkg/formatter"
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/dmartinol/application-exporter/pkg/model"
+	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 /*
@@ -13,13 +21,15 @@ import (
  */
 
 type ExporterMetrics struct {
-	config             *Config
+	config             *config.Config
 	appVersion         *prometheus.GaugeVec
 	appResourcesConfig *prometheus.GaugeVec
 	appResourcesUsage  *prometheus.GaugeVec
 }
 
-func NewExporterMetrics(config *Config) *ExporterMetrics {
+var router = mux.NewRouter()
+
+func NewExporterMetrics(config *config.Config) *ExporterMetrics {
 	exporterMetrics := ExporterMetrics{}
 	// TBD maybe not used
 	exporterMetrics.config = config
@@ -37,15 +47,31 @@ func NewExporterMetrics(config *Config) *ExporterMetrics {
 	}, []string{"environment", "namespace", "application", "type", "pod", "container", "cpu_usage", "memory_usage"})
 
 	prometheus.Register(&exporterMetrics)
+
 	return &exporterMetrics
+}
+
+func (s *ExporterMetrics) Start() {
+	router.Path("/metrics").Handler(promhttp.Handler())
+
+	host := "localhost"
+	if s.config.RunInContainer() {
+		host = "0.0.0.0"
+	}
+	url := fmt.Sprintf("%s:%d", host, s.config.ServerPort())
+	logger.Infof("Starting listener as %s", url)
+	if err := http.ListenAndServe(url, router); err != nil {
+		logger.Fatal(err)
+	}
 }
 
 // Collect implements prometheus.Collector
 func (em *ExporterMetrics) Collect(ch chan<- prometheus.Metric) {
 	logger.Infof("Collect invoked")
 
-	exporter := NewExporterService(em.config)
-	runner := exporter.newRunner(em.config, nil, nil)
+	// Creates a REST service exporter but does not start it
+	exporterService := exporter.NewExporterService(em.config)
+	runner := exporterService.NewRunner(em.config, nil, nil)
 
 	kubeConfig, err := runner.Connect()
 	if err != nil {
@@ -57,11 +83,12 @@ func (em *ExporterMetrics) Collect(ch chan<- prometheus.Metric) {
 	logger.Info("Cluster connected")
 	topology, err := runner.Collect(kubeConfig)
 	if err != nil {
+		logger.Fatalf("Cannot collect metrics from cluster: %s", err)
 		// TBD
 		// return err
 	}
 
-	for _, namespace := range SortedNamespaces(topology) {
+	for _, namespace := range formatter.SortedNamespaces(topology) {
 		for _, applicationProvider := range namespace.AllApplicationProviders() {
 			logger.Debugf("## %s %s", applicationProvider.(model.Resource).Kind(), applicationProvider.(model.Resource).Name())
 			for _, applicationConfig := range applicationProvider.ApplicationConfigs() {
@@ -71,11 +98,11 @@ func (em *ExporterMetrics) Collect(ch chan<- prometheus.Metric) {
 
 				if em.config.WithResources() {
 					g = em.resourcesConfigMetric(namespace.Name(), applicationProvider.(model.Resource), applicationConfig)
-					logger.Infof("Adding to ch: %s", g.Desc())
+					logger.Debugf("Adding to ch: %s", g.Desc())
 					ch <- g
 
 					for _, g := range em.resourcesUsageMetric(namespace, applicationProvider.(model.Resource), applicationConfig) {
-						logger.Infof("Adding to ch: %s", g.Desc())
+						logger.Debugf("Adding to ch: %s", g.Desc())
 						ch <- g
 					}
 				}
@@ -109,7 +136,7 @@ func (em *ExporterMetrics) resourcesConfigMetric(namespace string, application m
 	var record []string
 	res := applicationConfig.Resources
 	record = append(record, em.config.Environment(), namespace, application.Name(), application.Kind(), applicationConfig.ContainerName)
-	record = append(record, CpuLimits(res), MemoryLimits(res), CpuRequests(res), MemoryRequests(res))
+	record = append(record, formatter.CpuLimits(res), formatter.MemoryLimits(res), formatter.CpuRequests(res), formatter.MemoryRequests(res))
 	g := em.appResourcesConfig.WithLabelValues(record...)
 	// TBD
 	g.Set(0)
@@ -125,11 +152,11 @@ func (em *ExporterMetrics) resourcesUsageMetric(namespace model.NamespaceModel, 
 			record = append(record, em.config.Environment(), namespace.Name(), application.Name(), application.Kind(), pod.Name(), applicationConfig.ContainerName)
 			usage := pod.UsageForContainer(applicationConfig.ContainerName)
 			if usage != nil {
-				record = append(record, CpuUsage(usage), MemoryUsage(usage))
+				record = append(record, formatter.CpuUsage(usage), formatter.MemoryUsage(usage))
 			} else {
 				usage = pod.UsageForContainer(pod.Name())
 				if usage != nil {
-					record = append(record, CpuUsage(usage), MemoryUsage(usage))
+					record = append(record, formatter.CpuUsage(usage), formatter.MemoryUsage(usage))
 				} else {
 					record = append(record, "NA", "NA")
 				}
