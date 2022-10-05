@@ -21,7 +21,8 @@ import (
 )
 
 type ModelBuilder struct {
-	config *config.Config
+	config       *config.Config
+	runnerConfig *config.RunnerConfig
 
 	clientAppsV1       *clientAppsV1.AppsV1Client
 	clientImagesV1     *clientImagesV1.ImageV1Client
@@ -33,8 +34,8 @@ type ModelBuilder struct {
 	topologyModel *model.TopologyModel
 }
 
-func NewModelBuilder(config *config.Config) *ModelBuilder {
-	builder := ModelBuilder{config: config}
+func NewModelBuilder(config *config.Config, runnerConfig *config.RunnerConfig) *ModelBuilder {
+	builder := ModelBuilder{config: config, runnerConfig: runnerConfig}
 	builder.topologyModel = model.NewTopologyModel()
 	return &builder
 }
@@ -77,11 +78,11 @@ func (builder *ModelBuilder) BuildForKubeConfig(config *rest.Config) (*model.Top
 }
 
 func (builder *ModelBuilder) buildCluster() error {
-	logger.Infof("Starting data collection with max burst of %d", builder.config.Burst())
+	logger.Infof("Starting data collection for:\n%s\n%s", builder.config, builder.runnerConfig)
 	startAt := time.Now()
 	var namespaces *k8sCoreV1.NamespaceList
 	var err error
-	nsSelector := builder.config.NamespaceSelector()
+	nsSelector := builder.runnerConfig.NamespaceSelector()
 	logger.Infof("Filtering by %s", nsSelector)
 	namespaces, err = builder.k8sCoreClientV1.Namespaces().List(context.TODO(), k8sMetaV1.ListOptions{LabelSelector: nsSelector})
 	if err != nil {

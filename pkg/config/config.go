@@ -132,15 +132,20 @@ type Config struct {
 	runAs RunAs
 	runIn RunIn
 
-	environment string
+	serverPort    int
+	logLevel      string
+	burst         int
+	contentType   ContentType
+	withResources bool
 
-	serverPort        int
-	logLevel          string
+	runnerConfig *RunnerConfig
+}
+
+type RunnerConfig struct {
+	environment       string
 	namespaceSelector string
-	contentType       ContentType
-	outputFileName    string
-	withResources     bool
-	burst             int
+
+	outputFileName string
 }
 
 func NewConfig() *Config {
@@ -149,11 +154,11 @@ func NewConfig() *Config {
 	config.runAs = Script
 	config.runIn = VM
 
-	config.environment = "default"
 	config.logLevel = "info"
-	config.namespaceSelector = ""
 	config.contentType = Text
-	config.outputFileName = "output"
+	config.withResources = false
+
+	config.runnerConfig = NewRunnerConfig()
 
 	config.initFromFlags()
 	config.initFromEnvVars()
@@ -161,17 +166,27 @@ func NewConfig() *Config {
 	return &config
 }
 
+func NewRunnerConfig() *RunnerConfig {
+	runnerConfig := RunnerConfig{}
+	runnerConfig.environment = "default"
+	runnerConfig.namespaceSelector = ""
+	runnerConfig.outputFileName = "output"
+	return &runnerConfig
+}
+
 func (c *Config) initFromFlags() {
 	asService := flag.Bool("as-service", false, "Run as REST service")
 	isMonitoring := flag.Bool("is-monitoring", false, "Run as REST service for Prometheus scraping")
-	flag.StringVar(&c.environment, "environment", "default", "Environment name (to tag Prometheus metrics)")
 	flag.IntVar(&c.serverPort, "server-port", 8080, "Server port (only for REST service mode)")
 	flag.StringVar(&c.logLevel, "log-level", "info", "Log level, one of debug, info, warn")
-	flag.StringVar(&c.namespaceSelector, "ns-selector", "", "Namespace selector, like label1=value1,label2=value2")
 	contentType := flag.String("content-type", "text", "Content type, one of text, CSV")
-	outputFileName := flag.String("output", "", "Output file name, default is output.<content-type>. File suffix is automatically added")
+	c.contentType = ContentTypeFromString(*contentType)
 	flag.BoolVar(&c.withResources, "with-resources", false, "Include resource configuration and usage")
 	flag.IntVar(&c.burst, "burst", 40, "Maximum burst for throttle")
+
+	flag.StringVar(&c.runnerConfig.environment, "environment", "default", "Environment name (to tag Prometheus metrics)")
+	flag.StringVar(&c.runnerConfig.namespaceSelector, "ns-selector", "", "Namespace selector, like label1=value1,label2=value2")
+	outputFileName := flag.String("output", "", "Output file name, default is output.<content-type>. File suffix is automatically added")
 	flag.Parse()
 
 	if *asService {
@@ -179,9 +194,8 @@ func (c *Config) initFromFlags() {
 	} else if *isMonitoring {
 		c.runAs = Monitoring
 	}
-	c.contentType = ContentTypeFromString(*contentType)
 	if *outputFileName != "" {
-		c.outputFileName = *outputFileName
+		c.runnerConfig.outputFileName = *outputFileName
 	}
 }
 
@@ -195,14 +209,8 @@ func (c *Config) initFromEnvVars() {
 	if _, ok := os.LookupEnv("IS_MONITORING"); ok {
 		c.runAs = Monitoring
 	}
-	if v, ok := os.LookupEnv("ENVIRONMENT"); ok {
-		c.environment = v
-	}
 	if v, ok := os.LookupEnv("LOG_LEVEL"); ok {
 		c.logLevel = v
-	}
-	if v, ok := os.LookupEnv("NS_SELECTOR"); ok {
-		c.namespaceSelector = v
 	}
 	if v, ok := os.LookupEnv("CONTENT_TYPE"); ok {
 		c.contentType = ContentTypeFromString(v)
@@ -214,6 +222,13 @@ func (c *Config) initFromEnvVars() {
 			log.Fatalf("Cannot parse SERVER_PORT variable %s", v)
 		}
 	}
+
+	if v, ok := os.LookupEnv("ENVIRONMENT"); ok {
+		c.runnerConfig.environment = v
+	}
+	if v, ok := os.LookupEnv("NS_SELECTOR"); ok {
+		c.runnerConfig.namespaceSelector = v
+	}
 }
 
 func (c *Config) String() string {
@@ -221,8 +236,8 @@ func (c *Config) String() string {
 	if c.RunAsScript() {
 		serverPort = "NA"
 	}
-	return fmt.Sprintf("Run as: %s, Run in: %v, Environment: %s, Server port: %s, Log level: %s, Namespace selector: \"%s\", Content type: %s, Output filename: %s, With resources: %v, Burst: %d\n",
-		c.runAs, c.runIn, c.environment, serverPort, c.logLevel, c.namespaceSelector, c.contentType, c.outputFileName, c.withResources, c.burst)
+	return fmt.Sprintf("Run as: %s, Run in: %v,  Server port: %s, Log level: %s, , Content type: %s, With resources: %v, Burst: %d",
+		c.runAs, c.runIn, serverPort, c.logLevel, c.contentType, c.withResources, c.burst)
 }
 func (c *Config) RunAsScript() bool {
 	return c.runAs == Script
@@ -240,23 +255,14 @@ func (c *Config) RunInContainer() bool {
 	return c.runIn == Container
 }
 
-func (c *Config) Environment() string {
-	return c.environment
-}
 func (c *Config) LogLevel() string {
 	return c.logLevel
-}
-func (c *Config) NamespaceSelector() string {
-	return c.namespaceSelector
 }
 func (c *Config) ServerPort() int {
 	return c.serverPort
 }
 func (c *Config) ContentType() ContentType {
 	return c.contentType
-}
-func (c *Config) OutputFileName() string {
-	return c.outputFileName
 }
 func (c *Config) WithResources() bool {
 	return c.withResources
@@ -268,15 +274,34 @@ func (c *Config) Burst() int {
 func (c *Config) SetContentType(contentType ContentType) {
 	c.contentType = contentType
 }
-func (c *Config) SetNamespaceSelector(namespaceSelector string) {
-	c.namespaceSelector = namespaceSelector
-}
-func (c *Config) SetOutputFileName(outputFileName string) {
-	c.outputFileName = outputFileName
-}
 func (c *Config) SetWithResources(withResources bool) {
 	c.withResources = withResources
 }
 func (c *Config) SetBurst(burst int) {
 	c.burst = burst
+}
+
+func (c *Config) GlobalRunnerConfig() *RunnerConfig {
+	return c.runnerConfig
+}
+
+func (c *RunnerConfig) Environment() string {
+	return c.environment
+}
+func (c *RunnerConfig) NamespaceSelector() string {
+	return c.namespaceSelector
+}
+func (c *RunnerConfig) OutputFileName() string {
+	return c.outputFileName
+}
+
+func (c *RunnerConfig) SetNamespaceSelector(namespaceSelector string) {
+	c.namespaceSelector = namespaceSelector
+}
+func (c *RunnerConfig) SetOutputFileName(outputFileName string) {
+	c.outputFileName = outputFileName
+}
+
+func (r *RunnerConfig) String() string {
+	return fmt.Sprintf("Environment: %s, Namespace selector: \"%s\", Output filename: %s", r.environment, r.namespaceSelector, r.outputFileName)
 }

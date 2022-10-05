@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/dmartinol/application-exporter/pkg/config"
+	cfg "github.com/dmartinol/application-exporter/pkg/config"
 	"github.com/dmartinol/application-exporter/pkg/formatter"
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/dmartinol/application-exporter/pkg/model"
@@ -23,11 +24,12 @@ var kubeconfig *string
 var router = mux.NewRouter()
 
 type ExporterService struct {
-	config *config.Config
+	config       *cfg.Config
+	runnerConfig *cfg.RunnerConfig
 }
 
 func NewExporterService(config *config.Config) *ExporterService {
-	return &ExporterService{config: config}
+	return &ExporterService{config: config, runnerConfig: config.GlobalRunnerConfig()}
 }
 
 func (s *ExporterService) Start() {
@@ -62,6 +64,7 @@ func (s *ExporterService) NewRunner(config *config.Config, rw http.ResponseWrite
 
 func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Request) {
 	newConfig := *s.config
+	newRunnerConfig := *s.runnerConfig
 
 	contentTypeArg := req.FormValue("content-type")
 	if contentTypeArg != "" {
@@ -69,11 +72,11 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 	}
 	namespaceSelector := req.FormValue("ns-selector")
 	if namespaceSelector != "" {
-		newConfig.SetNamespaceSelector(namespaceSelector)
+		newRunnerConfig.SetNamespaceSelector(namespaceSelector)
 	}
 	outputFileName := req.FormValue("output")
 	if outputFileName != "" {
-		newConfig.SetOutputFileName(outputFileName)
+		newRunnerConfig.SetOutputFileName(outputFileName)
 	}
 	withResources := req.FormValue("with-resources")
 	if withResources != "" {
@@ -92,7 +95,7 @@ func (s *ExporterService) inventoryHandler(rw http.ResponseWriter, req *http.Req
 	if req.URL.Path == "/inventory" {
 		if req.Method == "POST" {
 			runner := s.NewRunner(&newConfig, rw, req)
-			RunExporter(runner)
+			RunExporter(runner, &newRunnerConfig)
 		} else {
 			http.Error(rw, fmt.Sprintf("Expect method POST at /, got %v", req.Method), http.StatusMethodNotAllowed)
 		}
@@ -110,8 +113,8 @@ func (r ExporterServiceRunner) Connect() (*rest.Config, error) {
 	return kubeConfig, err
 }
 
-func (r ExporterServiceRunner) Collect(kubeConfig *rest.Config) (*model.TopologyModel, error) {
-	topology, err := NewModelBuilder(r.config).BuildForKubeConfig(kubeConfig)
+func (r ExporterServiceRunner) Collect(runnerConfig *cfg.RunnerConfig, kubeConfig *rest.Config) (*model.TopologyModel, error) {
+	topology, err := NewModelBuilder(r.config, runnerConfig).BuildForKubeConfig(kubeConfig)
 	if err != nil {
 		http.Error(r.rw, fmt.Sprintf("Cannot build data model: %s", err), http.StatusInternalServerError)
 		return nil, err
@@ -124,8 +127,8 @@ func (r ExporterServiceRunner) Transform(topology *model.TopologyModel) *strings
 	return fmt.Format(topology)
 }
 
-func (r ExporterServiceRunner) Report(output *strings.Builder) {
-	reporter := NewHttpReporter(r.config, r.rw)
+func (r ExporterServiceRunner) Report(runnerConfig *cfg.RunnerConfig, output *strings.Builder) {
+	reporter := NewHttpReporter(r.config, runnerConfig, r.rw)
 	reporter.Report(output)
 }
 
