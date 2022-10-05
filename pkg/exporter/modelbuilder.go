@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dmartinol/application-exporter/pkg/config"
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	model "github.com/dmartinol/application-exporter/pkg/model"
 	clientAppsV1 "github.com/openshift/client-go/apps/clientset/versioned/typed/apps/v1"
@@ -20,7 +21,8 @@ import (
 )
 
 type ModelBuilder struct {
-	config *Config
+	config       *config.Config
+	runnerConfig *config.RunnerConfig
 
 	clientAppsV1       *clientAppsV1.AppsV1Client
 	clientImagesV1     *clientImagesV1.ImageV1Client
@@ -32,15 +34,15 @@ type ModelBuilder struct {
 	topologyModel *model.TopologyModel
 }
 
-func NewModelBuilder(config *Config) *ModelBuilder {
-	builder := ModelBuilder{config: config}
+func NewModelBuilder(config *config.Config, runnerConfig *config.RunnerConfig) *ModelBuilder {
+	builder := ModelBuilder{config: config, runnerConfig: runnerConfig}
 	builder.topologyModel = model.NewTopologyModel()
 	return &builder
 }
 
 func (builder *ModelBuilder) BuildForKubeConfig(config *rest.Config) (*model.TopologyModel, error) {
 	var err error
-	config.Burst = builder.config.burst
+	config.Burst = builder.config.Burst()
 
 	builder.clientAppsV1, err = clientAppsV1.NewForConfig(config)
 	if err != nil {
@@ -76,11 +78,11 @@ func (builder *ModelBuilder) BuildForKubeConfig(config *rest.Config) (*model.Top
 }
 
 func (builder *ModelBuilder) buildCluster() error {
-	logger.Infof("Starting data collection with max burst of %d", builder.config.burst)
+	logger.Infof("Starting data collection for:\n%s\n%s", builder.config, builder.runnerConfig)
 	startAt := time.Now()
 	var namespaces *k8sCoreV1.NamespaceList
 	var err error
-	nsSelector := builder.config.NamespaceSelector()
+	nsSelector := builder.runnerConfig.NamespaceSelector()
 	logger.Infof("Filtering by %s", nsSelector)
 	namespaces, err = builder.k8sCoreClientV1.Namespaces().List(context.TODO(), k8sMetaV1.ListOptions{LabelSelector: nsSelector})
 	if err != nil {
@@ -103,7 +105,7 @@ func (builder *ModelBuilder) buildCluster() error {
 	}
 
 	duration := time.Since(startAt)
-	logger.Infof("Data collection completed in %s (max burst is %d)", duration, builder.config.burst)
+	logger.Infof("Data collection completed in %s (max burst is %d)", duration, builder.config.Burst())
 
 	return nil
 }

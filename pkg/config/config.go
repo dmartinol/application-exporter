@@ -1,4 +1,4 @@
-package exporter
+package config
 
 import (
 	"flag"
@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/magiconair/properties"
 )
 
 type RunAs int64
@@ -14,6 +16,7 @@ type RunAs int64
 const (
 	Script RunAs = iota
 	Rest
+	Monitoring
 )
 
 func (r RunAs) String() string {
@@ -22,6 +25,8 @@ func (r RunAs) String() string {
 		return "Script"
 	case Rest:
 		return "REST"
+	case Monitoring:
+		return "Monitoring"
 	}
 	return "unknown"
 }
@@ -31,6 +36,8 @@ func RunAsFromString(runtimeMode string) RunAs {
 		return Script
 	case "rest":
 		return Rest
+	case "monitoring":
+		return Monitoring
 	}
 	return Script
 }
@@ -127,15 +134,20 @@ type Config struct {
 	runAs RunAs
 	runIn RunIn
 
-	environment string
+	serverPort    int
+	logLevel      string
+	burst         int
+	contentType   ContentType
+	withResources bool
 
-	serverPort        int
-	logLevel          string
+	runnerConfig *RunnerConfig
+}
+
+type RunnerConfig struct {
+	environment       string
 	namespaceSelector string
-	contentType       ContentType
-	outputFileName    string
-	withResources     bool
-	burst             int
+
+	outputFileName string
 }
 
 func NewConfig() *Config {
@@ -144,11 +156,11 @@ func NewConfig() *Config {
 	config.runAs = Script
 	config.runIn = VM
 
-	config.environment = "default"
 	config.logLevel = "info"
-	config.namespaceSelector = ""
 	config.contentType = Text
-	config.outputFileName = "output"
+	config.withResources = false
+
+	config.runnerConfig = NewRunnerConfig()
 
 	config.initFromFlags()
 	config.initFromEnvVars()
@@ -156,42 +168,53 @@ func NewConfig() *Config {
 	return &config
 }
 
+func NewRunnerConfig() *RunnerConfig {
+	runnerConfig := RunnerConfig{}
+	runnerConfig.environment = "default"
+	runnerConfig.namespaceSelector = ""
+	runnerConfig.outputFileName = "output"
+	return &runnerConfig
+}
+
+func NewRunnerConfigFromProperties(p *properties.Properties) *RunnerConfig {
+	runnerConfig := RunnerConfig{}
+	runnerConfig.environment = p.GetString("environment", "default")
+	runnerConfig.namespaceSelector = p.GetString("ns-selector", "")
+	runnerConfig.outputFileName = p.GetString("output", "output")
+	return &runnerConfig
+}
+
 func (c *Config) initFromFlags() {
-	asService := flag.Bool("as-service", false, "Run as REST service")
-	flag.StringVar(&c.environment, "environment", "default", "Environment name (to tag Prometheus metrics)")
+	runMode := flag.String("run-mode", "script", "Run mode, one of script, REST or monitoring")
 	flag.IntVar(&c.serverPort, "server-port", 8080, "Server port (only for REST service mode)")
 	flag.StringVar(&c.logLevel, "log-level", "info", "Log level, one of debug, info, warn")
-	flag.StringVar(&c.namespaceSelector, "ns-selector", "", "Namespace selector, like label1=value1,label2=value2")
 	contentType := flag.String("content-type", "text", "Content type, one of text, CSV")
-	outputFileName := flag.String("output", "", "Output file name, default is output.<content-type>. File suffix is automatically added")
+	c.contentType = ContentTypeFromString(*contentType)
 	flag.BoolVar(&c.withResources, "with-resources", false, "Include resource configuration and usage")
 	flag.IntVar(&c.burst, "burst", 40, "Maximum burst for throttle")
+
+	flag.StringVar(&c.runnerConfig.environment, "environment", "default", "Global environment name to tag Prometheus metrics")
+	flag.StringVar(&c.runnerConfig.namespaceSelector, "ns-selector", "", "Global namespace selector, like label1=value1,label2=value2")
+	outputFileName := flag.String("output", "", "Global output file name, default is output.<content-type>. File suffix is automatically added")
 	flag.Parse()
 
-	if *asService {
-		c.runAs = Rest
+	if *runMode != "" {
+		c.runAs = RunAsFromString(*runMode)
 	}
-	c.contentType = ContentTypeFromString(*contentType)
 	if *outputFileName != "" {
-		c.outputFileName = *outputFileName
+		c.runnerConfig.outputFileName = *outputFileName
 	}
 }
 
 func (c *Config) initFromEnvVars() {
-	if _, ok := os.LookupEnv("AS_SERVICE"); ok {
-		c.runAs = Rest
+	if v, ok := os.LookupEnv("RUN_MODE"); ok {
+		c.runAs = RunAsFromString(v)
 	}
 	if _, ok := os.LookupEnv("IN_CONTAINER"); ok {
 		c.runIn = Container
 	}
-	if v, ok := os.LookupEnv("ENVIRONMENT"); ok {
-		c.environment = v
-	}
 	if v, ok := os.LookupEnv("LOG_LEVEL"); ok {
 		c.logLevel = v
-	}
-	if v, ok := os.LookupEnv("NS_SELECTOR"); ok {
-		c.namespaceSelector = v
 	}
 	if v, ok := os.LookupEnv("CONTENT_TYPE"); ok {
 		c.contentType = ContentTypeFromString(v)
@@ -203,6 +226,13 @@ func (c *Config) initFromEnvVars() {
 			log.Fatalf("Cannot parse SERVER_PORT variable %s", v)
 		}
 	}
+
+	if v, ok := os.LookupEnv("ENVIRONMENT"); ok {
+		c.runnerConfig.environment = v
+	}
+	if v, ok := os.LookupEnv("NS_SELECTOR"); ok {
+		c.runnerConfig.namespaceSelector = v
+	}
 }
 
 func (c *Config) String() string {
@@ -210,14 +240,17 @@ func (c *Config) String() string {
 	if c.RunAsScript() {
 		serverPort = "NA"
 	}
-	return fmt.Sprintf("Run as: %s, Run in: %v, Environment: %s, Server port: %s, Log level: %s, Namespace selector: \"%s\", Content type: %s, Output filename: %s, With resources: %v, Burst: %d\n",
-		c.runAs, c.runIn, c.environment, serverPort, c.logLevel, c.namespaceSelector, c.contentType, c.outputFileName, c.withResources, c.burst)
+	return fmt.Sprintf("Run as: %s, Run in: %v,  Server port: %s, Log level: %s, , Content type: %s, With resources: %v, Burst: %d",
+		c.runAs, c.runIn, serverPort, c.logLevel, c.contentType, c.withResources, c.burst)
 }
 func (c *Config) RunAsScript() bool {
 	return c.runAs == Script
 }
 func (c *Config) RunAsService() bool {
 	return c.runAs == Rest
+}
+func (c *Config) RunAsMonitoring() bool {
+	return c.runAs == Monitoring
 }
 func (c *Config) RunInVM() bool {
 	return c.runIn == VM
@@ -226,14 +259,8 @@ func (c *Config) RunInContainer() bool {
 	return c.runIn == Container
 }
 
-func (c *Config) Environment() string {
-	return c.environment
-}
 func (c *Config) LogLevel() string {
 	return c.logLevel
-}
-func (c *Config) NamespaceSelector() string {
-	return c.namespaceSelector
 }
 func (c *Config) ServerPort() int {
 	return c.serverPort
@@ -241,12 +268,44 @@ func (c *Config) ServerPort() int {
 func (c *Config) ContentType() ContentType {
 	return c.contentType
 }
-func (c *Config) OutputFileName() string {
-	return c.outputFileName
-}
 func (c *Config) WithResources() bool {
 	return c.withResources
 }
 func (c *Config) Burst() int {
 	return c.burst
+}
+
+func (c *Config) SetContentType(contentType ContentType) {
+	c.contentType = contentType
+}
+func (c *Config) SetWithResources(withResources bool) {
+	c.withResources = withResources
+}
+func (c *Config) SetBurst(burst int) {
+	c.burst = burst
+}
+
+func (c *Config) GlobalRunnerConfig() *RunnerConfig {
+	return c.runnerConfig
+}
+
+func (c *RunnerConfig) Environment() string {
+	return c.environment
+}
+func (c *RunnerConfig) NamespaceSelector() string {
+	return c.namespaceSelector
+}
+func (c *RunnerConfig) OutputFileName() string {
+	return c.outputFileName
+}
+
+func (c *RunnerConfig) SetNamespaceSelector(namespaceSelector string) {
+	c.namespaceSelector = namespaceSelector
+}
+func (c *RunnerConfig) SetOutputFileName(outputFileName string) {
+	c.outputFileName = outputFileName
+}
+
+func (r *RunnerConfig) String() string {
+	return fmt.Sprintf("Environment: %s, Namespace selector: \"%s\", Output filename: %s", r.environment, r.namespaceSelector, r.outputFileName)
 }

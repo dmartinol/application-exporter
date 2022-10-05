@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/dmartinol/application-exporter/pkg/config"
+	cfg "github.com/dmartinol/application-exporter/pkg/config"
+	"github.com/dmartinol/application-exporter/pkg/formatter"
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/dmartinol/application-exporter/pkg/model"
 
@@ -14,20 +17,21 @@ import (
 )
 
 type ExporterApp struct {
-	config *Config
+	config       *cfg.Config
+	runnerConfig *cfg.RunnerConfig
 }
 
-func NewExporterApp(config *Config) *ExporterApp {
-	return &ExporterApp{config: config}
+func NewExporterApp(config *cfg.Config) *ExporterApp {
+	return &ExporterApp{config: config, runnerConfig: config.GlobalRunnerConfig()}
 }
 
 func (app *ExporterApp) Start() {
 	runner := app.newRunner()
-	RunExporter(runner)
+	RunExporter(runner, app.runnerConfig)
 }
 
 type ExporterAppRunner struct {
-	config *Config
+	config *config.Config
 }
 
 func (app *ExporterApp) newRunner() ExporterAppRunner {
@@ -42,8 +46,8 @@ func (r ExporterAppRunner) Connect() (*rest.Config, error) {
 	return clientcmd.BuildConfigFromFlags("", *r.initKubeconfig())
 }
 
-func (r ExporterAppRunner) Collect(kubeConfig *rest.Config) (*model.TopologyModel, error) {
-	topology, err := NewModelBuilder(r.config).BuildForKubeConfig(kubeConfig)
+func (r ExporterAppRunner) Collect(runnerConfig *cfg.RunnerConfig, kubeConfig *rest.Config) (*model.TopologyModel, error) {
+	topology, err := NewModelBuilder(r.config, runnerConfig).BuildForKubeConfig(kubeConfig)
 	if err != nil {
 		logger.Fatalf("Cannot build data model", err)
 		return nil, err
@@ -52,12 +56,12 @@ func (r ExporterAppRunner) Collect(kubeConfig *rest.Config) (*model.TopologyMode
 }
 
 func (r ExporterAppRunner) Transform(topology *model.TopologyModel) *strings.Builder {
-	fmt := NewFormatterForConfig(r.config)
+	fmt := formatter.NewFormatterForConfig(r.config)
 	output := fmt.Format(topology)
 	return output
 }
-func (r ExporterAppRunner) Report(output *strings.Builder) {
-	reporter := NewFileReporter(r.config)
+func (r ExporterAppRunner) Report(runnerConfig *cfg.RunnerConfig, output *strings.Builder) {
+	reporter := NewFileReporter(r.config, runnerConfig)
 	reporter.Report(output)
 }
 

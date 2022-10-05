@@ -1,10 +1,11 @@
-package exporter
+package formatter
 
 import (
 	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/dmartinol/application-exporter/pkg/config"
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 	"github.com/dmartinol/application-exporter/pkg/model"
 	k8sCoreV1 "k8s.io/api/core/v1"
@@ -17,19 +18,19 @@ func (a ByNamespaceName) Less(i, j int) bool { return a[i].Name() < a[j].Name() 
 func (a ByNamespaceName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type Formatter struct {
-	config *Config
+	config *config.Config
 }
 
-func NewFormatterForConfig(config *Config) Formatter {
+func NewFormatterForConfig(config *config.Config) Formatter {
 	return Formatter{config: config}
 }
 
 func (f Formatter) Format(topologyModel *model.TopologyModel) *strings.Builder {
 	logger.Infof("Received formatting request by %s", f.config.ContentType())
 	switch f.config.ContentType() {
-	case Text:
+	case config.Text:
 		return f.text(topologyModel)
-	case CSV:
+	case config.CSV:
 		return f.csv(topologyModel)
 	}
 	var sb = &strings.Builder{}

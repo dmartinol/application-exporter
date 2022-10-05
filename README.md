@@ -3,9 +3,8 @@ Go application to export the configuration of applications deployed in OpenShift
 * Filter namespaces by configurable label(s)
 * For each application (e.g., any `Deplopyment`, `DeploymentConfig` and `StatefulSet` in the matching namespaces), collect the image name and version and the resource configuration and usage (optional)
 * Export configuration in configurable format (text or CSV)
-* Run as a script or a REST service (`POST` to `/inventory` endpoint)
+* Run as a script, a REST service (`POST` to `/inventory` endpoint) or a Prometheus monitoring endopoint (`GET` to `/metrics`)
 * Run as a standalone executable or in OpenShift containerized environment (REST service only)
-* Expose metrics to Prometheus monitoring when running in OpenShift 
 
 Sample output in CSV format without the resource configuration and usage data:
 
@@ -34,28 +33,32 @@ The version is printed at the application startup, as in:
 ### Command line arguments
 ```bash
 Usage of ./application-exporter:
-  -as-service
-        Run as REST service
   -burst int
         Maximum burst for throttle (default 40)
   -content-type string
         Content type, one of text, CSV (default "text")
+  -environment string
+        Global environment name to tag Prometheus metrics (default "default")
   -log-level string
         Log level, one of debug, info, warn (default "info")
   -ns-selector string
-        Namespace selector, like label1=value1,label2=value2
+        Global namespace selector, like label1=value1,label2=value2
   -output string
-        Output file name, default is output.<content-type>. File suffix is automatically added
+        Global output file name, default is output.<content-type>. File suffix is automatically added
+  -run-mode string
+        Run mode, one of script, REST or monitoring (default "script")
   -server-port int
         Server port (only for REST service mode) (default 8080)
   -with-resources
         Include resource configuration and usage
 ```
 
+Note: global settings apply only to `script` and `REST` executions. For `monitoring` executions, the settings are configured differently.
+
 ### Environment variables
 The following environment variables can override the command arguments:
-* `AS_SERVICE`: any value, overrides `-as-service` command line argument
-* `IN_CONTAINER`: any value
+* `RUN_MODE`: overrides `-run-mode` command line argument
+* `IN_CONTAINER`: any value, specifies that the aplication runs in OpenShift containers
 * `LOG_LEVEL`: overrides `-log-level` command line argument
 * `NS_SELECTOR`: overrides `-ns-selector` command line argument
 * `CONTENT_TYPE`: overrides `-content-type` command line argument
@@ -168,6 +171,70 @@ oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=${APP_IMAGE} -f opensh
 Run `oc get ksvc -n ${APP_NAMESPACE} application-exporter-knative` to get the public URL of your service. Add the `/inventory` path 
 before invoking the services.
 
+### Running the Prometheus endpoint
+Run the following commands to export the `/metrics` endpoint to Prometheus scraping (default interval of `5m`):
+* Using an existing image
+```bash
+export APP_NAMESPACE=exporter
+export APP_IMAGE=quay.io/dmartino/application-exporter:prometheus
+oc project ${APP_NAMESPACE}
+oc label namespace ${APP_NAMESPACE} openshift.io/cluster-monitoring=true
+oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/rbac.yaml | oc apply -f -
+oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=${APP_IMAGE} -f openshift/monitoring.yaml | oc apply -f -
+```
+* Building the image in the local registry from the Git repo:
+```bash
+export APP_NAMESPACE=exporter
+export APP_IMAGE=image-registry.openshift-image-registry.svc:5000/${APP_NAMESPACE}/application-exporter:latest
+oc project ${APP_NAMESPACE}
+oc label namespace ${APP_NAMESPACE} openshift.io/cluster-monitoring=true
+oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/rbac.yaml | oc apply -f -
+oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/build.yaml | oc apply -f -
+oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=${APP_IMAGE} -f openshift/monitoring.yaml | oc apply -f -
+```
+
+```bash
+export APP_NAMESPACE=exporter
+oc label namespace ${APP_NAMESPACE} openshift.io/cluster-monitoring=true
+oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/servicemonitor.yaml | oc apply -f -
+```
+The above deployment does not create a public Route to access the endpoint, you must use the OpenShift monitoring tools to access the exposed metruics.
+
+**Note**: given the transitory nature of serverless deployments, this option is only supported with the [regular Service](#running-as-a-regular-service) deployment.
+
+#### Configuring the Prometheus metrics
+The `monitoring` execution allows to define multiple environments to be collected at the same time.
+Each environment is specified by a file wih `.conf` suffix that must be located in the `exporter-monitoring-config` ConfigMap, that comes with an example file:
+```yaml
+data:
+  infinity202110.conf: environment=Infinity202110 ns-selector=infinitySubChart=true
+  example.conf: |
+    environment=example
+    ns-selector=app=example
+```
+
+You can specify as many entry as you want, to let the exporter collect all the associated metrics and aggregate them by the given `environment` value.
+
+#### Sample promQL queries
+You can perform the following queries on the `Monitoring>Metrics` console:
+```bash
+# All applications versions
+application_version
+# All applications by given environment
+application_version{environment="ENV"}
+# All applications by version
+application_version{version="A.B.C"}
+# All applications starting by a given name
+application_version{version=~"START_NAME.*"}
+
+# All applications resources configuration
+application_resources_config
+# All applications resources configuration for containers ending by a given name
+application_resources_config{container=~".*END_NAME"}
+# All applications resources usage
+application_resources_usage
+```
+
 ### Optional template parameters
 The following parameters in [build.yaml](./openshift/build.yaml) have default values and don't usually need to be customized:
 ```yaml
@@ -196,37 +263,7 @@ oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/rbac.yaml | oc delete 
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/build.yaml | oc delete -f -
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=NA -f openshift/service.yaml | oc delete -f -
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=NA -f openshift/serverless.yaml | oc delete -f -
-```
-
-### Installing Prometheus metrics
-Run the following commands to export the `/metrics` endpoint to Prometheus scraping (default interval of `5m`):
-```bash
-export APP_NAMESPACE=exporter
-oc label namespace ${APP_NAMESPACE} openshift.io/cluster-monitoring=true
-oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/servicemonitor.yaml | oc apply -f -
-```
-Run this commands to stop the metrics monitoring:
-```bash
-export APP_NAMESPACE=exporter
-oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/servicemonitor.yaml | oc delete -f -
-```
-**Note**: given the transitory nature of serverless deployments, this option is only supported with the [regular Service](#running-as-a-regular-service) deployment.
-
-Sample of queries you can perform on the `Monitoring>Metrics` console:
-```bash
-# All applications versions
-application_version
-# All applications by version
-application_version{version="A.B.C"}
-# All applications starting by a given name
-application_version{version=~"START_NAME.*"}
-
-# All applications resources configuration
-application_resources_config
-# All applications resources configuration for containers ending by a given name
-application_resources_config{container=~".*END_NAME"}
-# All applications resources usage
-application_resources_usage
+oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=NA -f openshift/monitoring.yaml | oc delete -f -
 ```
 
 ## Open issues

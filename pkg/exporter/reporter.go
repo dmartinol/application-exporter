@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/dmartinol/application-exporter/pkg/config"
 	logger "github.com/dmartinol/application-exporter/pkg/log"
 )
 
@@ -17,15 +18,16 @@ type Reporter interface {
 }
 
 type FileReporter struct {
-	config *Config
+	config       *config.Config
+	runnerConfig *config.RunnerConfig
 }
 
-func NewFileReporter(config *Config) FileReporter {
-	return FileReporter{config: config}
+func NewFileReporter(config *config.Config, runnerConfig *config.RunnerConfig) FileReporter {
+	return FileReporter{config: config, runnerConfig: runnerConfig}
 }
 
 func (r *FileReporter) Report(data *strings.Builder) {
-	file, err := os.Create(fmt.Sprintf("%s.%s", r.config.OutputFileName(), r.config.contentType.Suffix()))
+	file, err := os.Create(fmt.Sprintf("%s.%s", r.runnerConfig.OutputFileName(), r.config.ContentType().Suffix()))
 	logger.Infof("Printing output on %s", file.Name())
 	if err != nil {
 		log.Fatalln("Error creating output file", err)
@@ -39,18 +41,19 @@ func (r *FileReporter) Report(data *strings.Builder) {
 }
 
 type HttpReporter struct {
-	config *Config
-	rw     http.ResponseWriter
+	config       *config.Config
+	runnerConfig *config.RunnerConfig
+	rw           http.ResponseWriter
 }
 
-func NewHttpReporter(config *Config, rw http.ResponseWriter) HttpReporter {
-	return HttpReporter{config: config, rw: rw}
+func NewHttpReporter(config *config.Config, runnerConfig *config.RunnerConfig, rw http.ResponseWriter) HttpReporter {
+	return HttpReporter{config: config, runnerConfig: runnerConfig, rw: rw}
 }
 
 func (r *HttpReporter) Report(data *strings.Builder) {
 	// r.rw.WriteHeader(http.StatusOK)
 
-	r.rw.Header().Set("Content-Type", r.config.contentType.HttpContentType())
-	r.rw.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%s.%s", r.config.OutputFileName(), r.config.contentType.Suffix()))
+	r.rw.Header().Set("Content-Type", r.config.ContentType().HttpContentType())
+	r.rw.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%s.%s", r.runnerConfig.OutputFileName(), r.config.ContentType().Suffix()))
 	r.rw.Write([]byte(data.String()))
 }
