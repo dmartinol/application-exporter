@@ -12,7 +12,8 @@ objects:
     SERVER_PORT: '8080'
     LOG_LEVEL: info
     # The namespace selector labels (comma separated sequence of key=value)
-    NS_SELECTOR: infinitySubChart=true
+    NS_SELECTOR: label=value
+    ENVIRONMENT: environment-name
 - apiVersion: serving.knative.dev/v1
   kind: Service
   metadata:

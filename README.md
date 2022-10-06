@@ -207,7 +207,6 @@ The `monitoring` execution allows to define multiple environments to be collecte
 Each environment is specified by a file wih `.conf` suffix that must be located in the `exporter-monitoring-config` ConfigMap, that comes with an example file:
 ```yaml
 data:
-  infinity202110.conf: environment=Infinity202110 ns-selector=infinitySubChart=true
   example.conf: |
     environment=example
     ns-selector=app=example
