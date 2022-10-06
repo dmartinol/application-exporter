@@ -172,11 +172,11 @@ Run `oc get ksvc -n ${APP_NAMESPACE} application-exporter-knative` to get the pu
 before invoking the services.
 
 ### Running the Prometheus endpoint
-Run the following commands to export the `/metrics` endpoint to Prometheus scraping (default interval of `5m`):
+Run the following commands to export the `/metrics` endpoint for Prometheus scraping (default interval of `1m`):
 * Using an existing image
 ```bash
 export APP_NAMESPACE=exporter
-export APP_IMAGE=quay.io/dmartino/application-exporter:prometheus
+export APP_IMAGE=quay.io/dmartino/application-exporter:0.1.4
 oc project ${APP_NAMESPACE}
 oc label namespace ${APP_NAMESPACE} openshift.io/cluster-monitoring=true
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/rbac.yaml | oc apply -f -
@@ -193,12 +193,7 @@ oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/build.yaml | oc apply 
 oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -p=APP_IMAGE=${APP_IMAGE} -f openshift/monitoring.yaml | oc apply -f -
 ```
 
-```bash
-export APP_NAMESPACE=exporter
-oc label namespace ${APP_NAMESPACE} openshift.io/cluster-monitoring=true
-oc process -p=APP_NAMESPACE=${APP_NAMESPACE} -f openshift/servicemonitor.yaml | oc apply -f -
-```
-The above deployment does not create a public Route to access the endpoint, you must use the OpenShift monitoring tools to access the exposed metruics.
+The above deployments do not create a public Route to access the endpoint, you must use the OpenShift monitoring tools to access the exposed metruics.
 
 **Note**: given the transitory nature of serverless deployments, this option is only supported with the [regular Service](#running-as-a-regular-service) deployment.
 

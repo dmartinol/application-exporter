@@ -87,7 +87,7 @@ objects:
     namespace: ${APP_NAMESPACE}
   spec:
     endpoints:
-    - interval: 30s
+    - interval: 1m
       path: /metrics
       port: http
       scheme: http
