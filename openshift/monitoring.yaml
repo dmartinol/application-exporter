@@ -43,6 +43,8 @@ objects:
             env:
             - name: RUN_MODE
               value: monitoring
+            - name: CONFIG_FOLDER
+              value: /etc/config
             - name: SERVER_PORT
               valueFrom:
                 configMapKeyRef:
@@ -85,7 +87,7 @@ objects:
     namespace: ${APP_NAMESPACE}
   spec:
     endpoints:
-    - interval: 5m
+    - interval: 30s
       path: /metrics
       port: http
       scheme: http
